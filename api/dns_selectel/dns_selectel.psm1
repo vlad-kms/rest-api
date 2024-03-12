@@ -316,10 +316,18 @@ function Get-Records() {
         }
     }
 
+    $VerAPI = (GetVersionAPI -Params $Params)
+    if ($VerAPI.ToLower() -eq 'v1') {
+        $svcstr="records"
+    } elseif ($VerAPI.ToLower() -eq 'v2') {
+        $svcstr="rrset"
+    } else {
+        throw "Версия API $($VerAPI) не поддерживается. $($MyInvocation.InvocationName)"
+    }
     $requestParams = @{
         "Params" = $Params;
         "Method" = "Get";
-        "Service" = "records$($record_id)";
+        "Service" = "$($svcstr)$($record_id)";
         "logLevel" = $LogLevel;
     }
 
@@ -1022,9 +1030,9 @@ function Get-TokenDNSSelectel() {
         $diffTime=(Get-Date) - $Token_Current.DateToken
         $getFromEnv=[bool]([int]$Section.token_use_env)
         if (
-            ($Section.Username -eq $Token_Current.Username) -and
-            ($Section.UserID -eq $Token_Current.UserID) -and
-            ($Section.ProjectName -eq $Token_Current.ProjectName) -and
+            ($Section."user_name" -eq $Token_Current.Username) -and
+            ($Section."user_id" -eq $Token_Current.UserID) -and
+            ($Section."project_name" -eq $Token_Current.ProjectName) -and
             # 1 day  - 5 minute
             ( $diffTime.TotalMinutes -gt 0 -and $diffTime.TotalMinutes -lt (24*60-5) )
            )
@@ -1151,10 +1159,12 @@ function GetVersionAPI() {
 #Export-ModuleMember -Function Invoke-API
 #Export-ModuleMember -Function *
 
-$Token_Current=@{
-    Username='';
-    UserID='';
-    ProjectName='';
-    TokenKeystone='';
-    DateToken=[datetime](Get-Date -Date "1.1.0 0:0:0")
+if ( ($null -eq (Get-Variable Token_Current -ErrorAction SilentlyContinue)) -or ($Token_Current -isnot [hashtable])) {
+    $global:Token_Current=@{
+        Username='';
+        UserID='';
+        ProjectName='';
+        TokenKeystone='';
+        DateToken=[datetime](Get-Date -Date "1.1.0 0:0:0")
+    }
 }
