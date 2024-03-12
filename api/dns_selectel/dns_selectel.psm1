@@ -172,7 +172,7 @@ function Get-Test() {
 }
 
 <############################################################################################################>
-<############################################################################################################>
+<###  v1 and v2 #############################################################################################>
 <############################################################################################################>
 function Get-Domains() {
     <#
@@ -256,7 +256,7 @@ function Get-Domains() {
 }
 
 <############################################################################################################>
-<############################################################################################################>
+<###  v1 and v2 #############################################################################################>
 <############################################################################################################>
 function Get-Records() {
     <#
@@ -350,7 +350,7 @@ function Get-Records() {
 }
 
 <############################################################################################################>
-<############################################################################################################>
+<###  v1 and v2 #############################################################################################>
 <############################################################################################################>
 function Export-ToBind() {
     <#
@@ -419,6 +419,9 @@ function Export-ToBind() {
     return $res
 }
 
+<############################################################################################################>
+<###  v1 and v2 #############################################################################################>
+<############################################################################################################>
 function Get-State() {
     <#
     .DESCRIPTION
@@ -447,31 +450,42 @@ function Get-State() {
     Write-Verbose "$($MyInvocation.InvocationName) ENTER: ============================================="
     Write-Verbose "Переданные параметры: $($Params | ConvertTo-Json -Depth $LogLevel)"
 
-    if ($Params.Params.ContainsKey("Domain") -and $Params.Params.Domain -and ([String]$Params.Params.Domain).Trim()) {
-        $Params += @{'additionalUri' = ([String]$Params.Params.Domain).Trim()}
-    } else {
-        $mess = "Запрос не может быть выполнен. Не указан обязательный параметр <Params.params.domain> - домен для которого надо сделать экспорт ресурсных записей."
-        throw $mess
-    }
-
-    $requestParams = @{
-        "Params" = $Params;
-        "Method" = "Get";
-        "Service" = "state";
-        "logLevel" = $LogLevel;
-    }
-
-    $resultAPI = (Invoke-Request @requestParams)
-    $res = @{
-        'raw'  = $resultAPI;
-        'code' = $resultAPI.StatusCode;
-    }
-    if ($res.Code -eq 200) { # OK
-        $res += @{
-            'resDomains' = $resultAPI.Content;
+    $VerAPI = (GetVersionAPI -Params $Params)
+    if ($VerAPI -eq 'v1') {
+        if ($Params.Params.ContainsKey("Domain") -and $Params.Params.Domain -and ([String]$Params.Params.Domain).Trim()) {
+            $Params += @{'additionalUri' = ([String]$Params.Params.Domain).Trim()}
+        } else {
+            $mess = "Запрос не может быть выполнен. Не указан обязательный параметр <Params.params.domain> - домен для которого надо сделать экспорт ресурсных записей."
+            throw $mess
+        }
+    
+        $requestParams = @{
+            "Params" = $Params;
+            "Method" = "Get";
+            "Service" = "state";
+            "logLevel" = $LogLevel;
+        }
+    
+        $resultAPI = (Invoke-Request @requestParams)
+        $res = @{
+            'raw'  = $resultAPI;
+            'code' = $resultAPI.StatusCode;
+        }
+        if ($res.Code -eq 200) { # OK
+            $res += @{
+                'resDomains' = ($resultAPI.Content | ConvertFrom-Json);
+            }
+        } else {
+            throw $resultAPI.StatusDescription
         }
     } else {
-        throw $resultAPI.StatusDescription
+        #throw "$($MyInvocation.InvocationName) не поддерживается версией $($VerAPI)"
+        $res = (Get-Domains -Params $Params -LogLevel $LogLevel)
+        if ($res.Code -eq 200) { # OK
+            $res.resDomains = @{"disabled"=$res.resDomains.disabled};
+        } else {
+            throw $res.StatusDescription
+        }
     }
 
     Write-Verbose "Data return: "
@@ -480,6 +494,9 @@ function Get-State() {
     return $res
 }
 
+<############################################################################################################>
+<###  v1 #############################################################################################>
+<############################################################################################################>
 function Set-State() {
     <#
     .DESCRIPTION
@@ -508,12 +525,14 @@ function Set-State() {
 
     Write-Verbose "$($MyInvocation.InvocationName) ENTER: ============================================="
     Write-Verbose "Переданные параметры: $($Params | ConvertTo-Json -Depth $LogLevel)"
+    
+    $VerAPI = (GetVersionAPI -Params $Params)
 
     # domain
     if ($Params.Params.ContainsKey("Domain") -and $Params.Params.Domain -and ([String]$Params.Params.Domain).Trim()) {
         $Params += @{'additionalUri' = ([String]$Params.Params.Domain).Trim()}
     } else {
-        $mess = "Запрос не может быть выполнен. Не указан обязательный параметр <Params.params.domain> - домен для которого надо сделать экспорт ресурсных записей."
+        $mess = "Запрос не может быть выполнен. Не указан обязательный параметр <Params.params.domain> - домен, для которого надо отключить обслуживание."
         throw $mess
     }
     # state value

@@ -59,15 +59,15 @@ $r2=(.\rest-api.ps1 -Provider 'dns_selectel' `
 
 Write-Host "=============================================================================================================="
 Write-Host "https://api.selectel.ru/domains/v2/zones"
-($r.raw.Providers.dns_selectel.res.resapi.HttpResponse.resDomains | ConvertTo-Json -Depth 4)
+($r.result | ConvertTo-Json -Depth 4)
 
 Write-Host "=============================================================================================================="
 Write-Host "https://api.selectel.ru/domains/v2/zones/{id_domain}"
 Write-Host "id_domain - берется ExtParams.Service"
-$r1.raw.Providers.dns_selectel.res.resapi.HttpResponse.resDomains
+$r1.result
 
 
 Write-Host "=============================================================================================================="
 Write-Host "https://api.selectel.ru/domains/v2/zones/{id_domain}"
 Write-Host "id_domain - берется ExtParams.domain"
-$r2.raw.Providers.dns_selectel.res.resapi.HttpResponse.resDomains
+$r2.result
