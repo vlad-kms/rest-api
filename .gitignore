@@ -1,0 +1,12 @@
+﻿**.idea
+**.vscode
+/*.ini
+/*.cfg
+*.iml
+**.test
+**.classes
+**123
+**123.ps1
+**raw.ps1
+**secrets.ps1
+**.txt
