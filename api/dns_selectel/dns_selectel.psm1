@@ -495,7 +495,7 @@ function Get-State() {
 }
 
 <############################################################################################################>
-<###  v1 #############################################################################################>
+<###  v1 and v2 #############################################################################################>
 <############################################################################################################>
 function Set-State() {
     <#
@@ -526,8 +526,6 @@ function Set-State() {
     Write-Verbose "$($MyInvocation.InvocationName) ENTER: ============================================="
     Write-Verbose "Переданные параметры: $($Params | ConvertTo-Json -Depth $LogLevel)"
     
-    $VerAPI = (GetVersionAPI -Params $Params)
-
     # domain
     if ($Params.Params.ContainsKey("Domain") -and $Params.Params.Domain -and ([String]$Params.Params.Domain).Trim()) {
         $Params += @{'additionalUri' = ([String]$Params.Params.Domain).Trim()}
@@ -564,6 +562,9 @@ function Set-State() {
     return $res
 }
 
+<############################################################################################################>
+<###  v1  #############################################################################################>
+<############################################################################################################>
 function Add-Record() {
     <#
     .DESCRIPTION
@@ -606,6 +607,8 @@ function Add-Record() {
     Write-Verbose "$($MyInvocation.InvocationName) ENTER: ============================================="
     #Write-Verbose "Переданные параметры: $($Params | ConvertTo-Json -Depth $LogLevel)"
 
+    $VerAPI = (GetVersionAPI -Params $Params)
+
     # domain
     if ($Params.Params.ContainsKey("Domain") -and $Params.Params.Domain -and ([String]$Params.Params.Domain).Trim()) {
         $Params += @{'additionalUri' = ([String]$Params.Params.Domain).Trim()}
@@ -625,11 +628,19 @@ function Add-Record() {
     if ($messError) {
         throw $messError
     }
+    # Service
+    if ($VerAPI.ToLower() -eq 'v1' ) {
+        $svcstr="records"
+    } elseif ($VerAPI.ToLower() -eq 'v2') {
+        $svcstr="rrset"
+    } else {
+        throw "Версия API $($VerAPI) не поддерживается. $($MyInvocation.InvocationName)"
+    }
     #
     $requestParams = @{
         "Params" = $Params;
         "Method" = "POST";
-        "Service" = "records";
+        "Service" = "$($svcstr)";
         "Body" = $Body;
         "logLevel" = $LogLevel;
     }

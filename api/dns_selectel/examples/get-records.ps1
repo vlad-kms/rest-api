@@ -1,12 +1,10 @@
-﻿[CmdletBinding()]
+﻿
+[CmdletBinding()]
 Param(
-    [String]$domain='',
+    [String]$domain='9ab289ff-d101-4d6a-8227-9adcf9fc9d83',
+    [String]$record='',
     [String]$ver='v2'
 )
-
-
-#t.mrovo.ru
-#id=9ab289ff-d101-4d6a-8227-9adcf9fc9d83
 $vb=$false
 
 $global:r1=(.\rest-api.ps1 -Provider 'dns_selectel' `
@@ -15,58 +13,59 @@ $global:r1=(.\rest-api.ps1 -Provider 'dns_selectel' `
                 "sectionName"="dns_selectel"; 
                 'CFG'=@{
                     'dns_selectel'=@{
-                        'version'="$($ver)";
-                        "config_v2"=@{
-                            "token_use_env"="0"
-                        }
+                        'version'="$($ver)"
                     }
                 };
                 'domain'="$($domain)";
                 "_Service" = "$($domain)";
                 "Body"='test';
                 '_Query'='offset=2&limit=2&show_ips=true';
-                '_record_id'=11264554 `
+                'record_id'="$($record)" `
     } `
     -Module D:\Tools\~scripts.ps\avvClasses1 `
     -PathIncludes 'D:\Tools\~scripts.ps\avvClasses\classes' `
-    -Action 'gds' `
+    -Action 'grs' `
     -debug `
     -verbose:$vb `
-    -LogLevel 1
+    -LogLevel 1 `
 );
 
+<#
 $global:r2=(.\rest-api.ps1 -Provider 'dns_selectel' `
     -FileIni "E:\!my-configs\configs\src\dns-api\config.json" `
     -ExtParams @{
                 "sectionName"="dns_selectel"; 
                 'CFG'=@{
                     'dns_selectel'=@{
-                        'version'="$($ver)";
-                        "config_v2"=@{
-                            "token_use_env"="0"
-                        }
+                        'version'="$($ver)"
                     }
                 };
-                '_domain'="$($domain)";
-                "Service" = "$($domain)";
+                'domain'="$($domain)";
+                "_Service" = "$($domain)";
                 "Body"='test';
                 '_Query'='offset=2&limit=2&show_ips=true';
-                '_record_id'=11264554 `
+                'record_id'="$($record)" `
     } `
     -Module D:\Tools\~scripts.ps\avvClasses1 `
     -PathIncludes 'D:\Tools\~scripts.ps\avvClasses\classes' `
-    -Action 'gds' `
+    -Action 'grs' `
     -debug `
     -verbose:$vb `
-    -LogLevel 1
+    -LogLevel 1 `
 );
+#>
+Write-Output "=============================================================================================================="
+Write-Output "Version API: $($ver)"
+Write-Output "domain: $($domain)"
+Write-Output "record: $($record)"
+$r1.result
 
-Write-Host "========================================= Get-Domains domain in ExtParams.domain"
-Write-Host "Version API: $($ver)`nDomain: $($domain)"
-($r1.result | ConvertTo-Json -Depth 4)
+<#
+Write-Output "=============================================================================================================="
+Write-Output "Version API: $($ver)"
+Write-Output "domain: $($domain)"
+Write-Output "record: $($record)"
+$r2.raw.Providers.dns_selectel.res.resapi.HttpResponse.resDomains
+#>
 
-Write-Host "========================================= Get-Domains domain in ExtParams.service"
-Write-Host "Version API: $($ver)`\nDomain: $($domain)"
-$r2.result
-
-Write-Output 'GLOBAL VAR $r1 and $r2'
+Write-Output 'GLOBAL VAR $r1'
