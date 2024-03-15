@@ -864,7 +864,7 @@ function Invoke-Request() {
     Param(
         [Parameter(Mandatory=$true, Position=0, ValueFromPipeline=$true)]
         [hashtable] $Params,
-        [Parameter(Mandatory=$true, Position=1)]
+        [Parameter(Position=1)]
         [ValidateSet('Get','Post','Put','Delete', 'Patch')]
         [String] $Method="Get",
         [Parameter(Position=2)]

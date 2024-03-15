@@ -2,6 +2,7 @@
 [CmdletBinding()]
 Param(
     [String]$domain='9ab289ff-d101-4d6a-8227-9adcf9fc9d83',
+    [P]
     [String]$record='',
     [String]$ver='v2'
 )
