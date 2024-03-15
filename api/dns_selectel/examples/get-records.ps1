@@ -1,8 +1,8 @@
 ﻿
 [CmdletBinding()]
 Param(
-    [String]$domain='9ab289ff-d101-4d6a-8227-9adcf9fc9d83',
-    [P]
+    [Parameter(ValueFromPipeline=$true, Position=0)]
+    [String]$domain='ce26d823-51a7-420d-8158-08450ca3c6ab',
     [String]$record='',
     [String]$ver='v2'
 )

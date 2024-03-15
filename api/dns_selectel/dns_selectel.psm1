@@ -173,6 +173,7 @@ function Get-Test() {
 
 <############################################################################################################>
 <###  v1 and v2 #############################################################################################>
+<###  Получить домены                                                                                     ###>
 <############################################################################################################>
 function Get-Domains() {
     <#
@@ -257,6 +258,7 @@ function Get-Domains() {
 
 <############################################################################################################>
 <###  v1 and v2 #############################################################################################>
+<###  Получить ресурсные записи домена                                                                    ###>
 <############################################################################################################>
 function Get-Records() {
     <#
@@ -350,7 +352,9 @@ function Get-Records() {
 }
 
 <############################################################################################################>
-<###  v1 and v2 #############################################################################################>
+<###  v1        #############################################################################################>
+<###  v2 не поддерживается       ############################################################################>
+<###  Экспорт данные о записях в формате ZONE BIND                                                        ###>
 <############################################################################################################>
 function Export-ToBind() {
     <#
@@ -421,6 +425,7 @@ function Export-ToBind() {
 
 <############################################################################################################>
 <###  v1 and v2 #############################################################################################>
+<###  Получить статус зоны на NS серверах Selectel: свойство disabled                                     ###>
 <############################################################################################################>
 function Get-State() {
     <#
@@ -563,7 +568,7 @@ function Set-State() {
 }
 
 <############################################################################################################>
-<###  v1  #############################################################################################>
+<###  v1 and v2 #############################################################################################>
 <############################################################################################################>
 function Add-Record() {
     <#
@@ -580,19 +585,59 @@ function Add-Record() {
     Обязательные ключи в HASHTABLE:
         Params.Params.domain  - имя  или id домена
         Params.Params.record  - Словарь данных для описания ресурсной записи
+        v1
             @{
                 type = @('A');
-                Content = <ipv4_ADDRESS>;
                 name = <имя>;
                 ttl = <n>;
+                Content = <ipv4_ADDRESS>;
             }
             @{
                 type = @('CNAME');
-                Content = <имяREF>;
                 name = <имя>;
                 ttl = <n>;
+                Content = <имяREF>;
             }
-    Необязательные ключи в HASHTABLE:
+        v2
+            Из документации:
+                RRSetCreateForm{
+                    comment	string
+                        maxLength: 255
+                        title: Comment
+                    name*	string
+                        title: Name
+                    records*	Records[
+                        maxItems: 100
+                        title: Records
+                        Records{
+                            content*	string
+                                title: Content
+                            disabled	boolean
+                                default: false
+                                title: Disabled
+                        }
+                    ]
+                    ttl*	integer
+                        maximum: 604800
+                        minimum: 60
+                        title: Ttl
+                    type*   AllowedRecordTypes  string
+                        title: AllowedRecordTypes
+                        An enumeration.
+                        Enum: [ A, AAAA, ALIAS, CAA, CNAME, DNAME, HTTPS, MX, NS, SOA, SRV, SVCB, SSHFP, TXT ]
+                }
+            @{
+                type=<[ A, AAAA, ALIAS, CAA, CNAME, DNAME, HTTPS, MX, NS, SOA, SRV, SVCB, SSHFP, TXT ]>;
+                name=<имя>;
+                ttl=<n>;
+                records=@(
+                    {content=<IP>},
+                    {disabled=false}
+                )
+                comment="Text comment";
+            }
+
+        Необязательные ключи в HASHTABLE:
 
     #>
     #Requires -Version 3
@@ -621,7 +666,7 @@ function Add-Record() {
     $messError = ""
     $record = $Params.params.record
     if ($null -ne $record -and ($record -is [hashtable]) -or ($record -is [PSCustomObject]) -or ($record -is [psobject])  ) {
-        $Body = $Params.params.record
+        $Body = $record
     } else {
         $messError = "Запрос не может быть выполнен. Не определены или неверно заданы параметры ресурсной записи для домена $($Params.Params.Domain)."
     }
@@ -664,6 +709,9 @@ function Add-Record() {
     return $res
 }
 
+<############################################################################################################>
+<###  v1 and v2 #############################################################################################>
+<############################################################################################################>
 function Remove-Record() {
     <#
     .DESCRIPTION
@@ -694,6 +742,8 @@ function Remove-Record() {
     Write-Verbose "$($MyInvocation.InvocationName) ENTER: ============================================="
     #Write-Verbose "Переданные параметры: $($Params | ConvertTo-Json -Depth $LogLevel)"
 
+    $VerAPI = (GetVersionAPI -Params $Params)
+
     # domain
     if ($Params.Params.ContainsKey("Domain") -and $Params.Params.Domain -and ([String]$Params.Params.Domain).Trim()) {
         $Params += @{'additionalUri' = ([String]$Params.Params.Domain).Trim()}
@@ -708,11 +758,19 @@ function Remove-Record() {
         $messError = "Запрос не может быть выполнен. Не указан обязательный параметр <Params.params.record_id> - id ресурсной записи для удаления."
         throw $messError
     }
+    # Service
+    if ($VerAPI.ToLower() -eq 'v1' ) {
+        $svcstr="records"
+    } elseif ($VerAPI.ToLower() -eq 'v2') {
+        $svcstr="rrset"
+    } else {
+        throw "Версия API $($VerAPI) не поддерживается. $($MyInvocation.InvocationName)"
+    }
     #
     $requestParams = @{
         "Params" = $Params;
         "Method" = "DELete";
-        "Service" = "records$($record_id)";
+        "Service" = "$($svcstr)$($record_id)";
         "logLevel" = $LogLevel;
     }
 
@@ -735,6 +793,9 @@ function Remove-Record() {
     return $res
 }
 
+<############################################################################################################>
+<###  v1 and v2 #############################################################################################>
+<############################################################################################################>
 function Set-Record() {
     <#
     .DESCRIPTION
@@ -764,6 +825,8 @@ function Set-Record() {
     Write-Verbose "$($MyInvocation.InvocationName) ENTER: ============================================="
     #Write-Verbose "Переданные параметры: $($Params | ConvertTo-Json -Depth $LogLevel)"
 
+    $VerAPI = (GetVersionAPI -Params $Params)
+
     # domain
     if ($Params.Params.ContainsKey("Domain") -and $Params.Params.Domain -and ([String]$Params.Params.Domain).Trim()) {
         $Params += @{'additionalUri' = ([String]$Params.Params.Domain).Trim()}
@@ -791,10 +854,20 @@ function Set-Record() {
         throw $messError
     }
     #
+    # Service
+    if ($VerAPI.ToLower() -eq 'v1' ) {
+        $Method='Put'
+        $svcstr="records"
+    } elseif ($VerAPI.ToLower() -eq 'v2') {
+        $Method='Patch'
+        $svcstr="rrset"
+    } else {
+        throw "Версия API $($VerAPI) не поддерживается. $($MyInvocation.InvocationName)"
+    }
     $requestParams = @{
         "Params" = $Params;
-        "Method" = "Put";
-        "Service" = "records$($record_id)";
+        "Method" = $Method;
+        "Service" = "$($svcstr)$($record_id)";
         "Body" = $Body;
         "logLevel" = $LogLevel;
     }
@@ -804,7 +877,7 @@ function Set-Record() {
         'raw'  = $resultAPI;
         'code' = $resultAPI.StatusCode;
     }
-    if ($res.Code -eq 200) { # OK
+    if ( ($res.Code -eq 200) -or ($res.Code -eq 204) ) { # OK
         $res += @{
             'resDomains' = $resultAPI.Content;
         }
