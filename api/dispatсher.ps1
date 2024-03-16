@@ -228,6 +228,7 @@ function Get-Invoke-API () {
     }
     end {
         Write-Verbose "$($MyInvocation.InvocationName) LEAVE: ============================================="
+        $result += @{'result'=$result.resAPI.HttpResponse.resDomains}
         return $result
     }
 }

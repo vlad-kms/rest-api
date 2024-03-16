@@ -341,6 +341,8 @@ if ($Action.ToUpper() -eq '_TEST_') {
     Write-Verbose "command: $($command)"
     $rm = (Invoke-Expression -Command $command)
     $result.raw.Providers.$Provider.res += $rm
+    $result.retCode=$rm.resAPI.HttpResponse.code
+    $result.result=$rm.result
 }
 #(get-module -all).path
 if ($PSBoundParameters.Debug) {

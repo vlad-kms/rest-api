@@ -1,4 +1,7 @@
-﻿function Invoke-API1 () {
+﻿<# ############################################################################################## #>
+<# ############################################################################################## #>
+<# ############################################################################################## #>
+function Invoke-API1 () {
     <#
     .SYNOPSIS
     Маршрутизация методов API
@@ -108,6 +111,9 @@
 
 }
 
+<# ############################################################################################## #>
+<# ############################################################################################## #>
+<# ############################################################################################## #>
 function Get-SupportedFeatures() {
     <#
     .DESCRIPTION
@@ -135,6 +141,9 @@ function Get-SupportedFeatures() {
     return $result
 }
 
+<# ############################################################################################## #>
+<# ############################################################################################## #>
+<# ############################################################################################## #>
 function Get-Domains() {
     <#
     .DESCRIPTION
@@ -227,6 +236,9 @@ function Get-Domains() {
     return $res
 }
 
+<# ############################################################################################## #>
+<# ############################################################################################## #>
+<# ############################################################################################## #>
 function Get-Record() {
     <#
     .DESCRIPTION
@@ -309,6 +321,9 @@ function Get-Record() {
     return $res
 }
 
+<# ############################################################################################## #>
+<# ############################################################################################## #>
+<# ############################################################################################## #>
 function Add-Records() {
     <#
     .DESCRIPTION
@@ -325,7 +340,7 @@ function Add-Records() {
     .PARAMETER Params
     Params.params - [hashtable], здесь то, что было передано скрипту в -ExtParams
     Обязательные ключи в HASHTABLE:
-        Params.Params.record  - массив структур ресурсных записей для создания
+        Params.Params.records  - массив структур ресурсных записей для создания
             @(
                 @{
                     domainId = <id_domain>  - id домена в котором наджо создать запись
@@ -373,7 +388,7 @@ function Add-Records() {
     $resArray = @()
 
     # цикл для каждой переданной ресурсной записи
-    $Params.params.record.foreach({
+    $Params.params.records.foreach({
         Write-Verbose "$($_|ConvertTo-Json -Depth $LogLevel)"
         if ($_.Type.ToUpper() -eq "A") {
             $Service = 'recorda'
@@ -393,7 +408,7 @@ function Add-Records() {
             $Service = 'recordtxt'
             $_.Text = $_.Content
         } else {
-            $messError = "Запрос не может быть выполнен. Не указан (неверно задан) - $($_.Type.ToUpper()) - обязательный параметр <Params.params.record.type> - тип ресурсной записи, может быть одним из 'A', 'AAAA', 'CNAME', 'NS', 'TXT'."
+            $messError = "Запрос не может быть выполнен. Не указан (неверно задан) - $($_.Type.ToUpper()) - обязательный параметр <Params.params.records.type> - тип ресурсной записи, может быть одним из 'A', 'AAAA', 'CNAME', 'NS', 'TXT'."
             throw $messError
         }
         if ( -not $_.ContainsKey('DomainId')) {
@@ -431,6 +446,9 @@ function Add-Records() {
     return $resArray
 }
 
+<# ############################################################################################## #>
+<# ############################################################################################## #>
+<# ############################################################################################## #>
 function Remove-Records() {
     <#
     .DESCRIPTION
@@ -446,7 +464,7 @@ function Remove-Records() {
     .PARAMETER Params
     Params.params - [hashtable], здесь то, что было передано скрипту в -ExtParams
     Обязательные ключи в HASHTABLE:
-        Params.Params.record - массив словарей ресурсных записей, которые надо удалить
+        Params.Params.records - массив словарей ресурсных записей, которые надо удалить
             @(
                 @{
                     "domainId"=<domainId>, если этого ключа нет, то используем Params.Params.Service или Params.Params.Domain
@@ -485,15 +503,15 @@ function Remove-Records() {
     #>
     $resArray = @()
     # цикл по записям для удаления
-    $Params.params.record.foreach({
+    $Params.params.records.foreach({
         #
         if (-not $_.ContainsKey('domainId')) {$_.DomainId = $domainDef_id}
         if ( -not ([string]$_.DomainId).Trim() ) {
-            $mess = "Запрос не может быть выполнен. Не указан обязательный параметр <Params.params.domain> (<Params.params.record[recordId]>) - домен для которого надо удалить ресурсную запись."
+            $mess = "Запрос не может быть выполнен. Не указан обязательный параметр <Params.params.domain> (<Params.params.records[recordId]>) - домен для которого надо удалить ресурсную запись."
             throw $mess
         }
         if ( -not ([string]$_.recordId).Trim() ) {
-            $mess = "Запрос не может быть выполнен. Не указан обязательный параметр <Params.params.record[recordId]> - id записи для удаления."
+            $mess = "Запрос не может быть выполнен. Не указан обязательный параметр <Params.params.records[recordId]> - id записи для удаления."
             throw $mess
         }
         #
@@ -520,8 +538,6 @@ function Remove-Records() {
             #throw $resultAPI.StatusDescription
         }
         <##>
-
-
     })
 
     Write-Verbose "Data return: "
@@ -530,6 +546,9 @@ function Remove-Records() {
     return $resArray
 }
 
+<# ############################################################################################## #>
+<# ############################################################################################## #>
+<# ############################################################################################## #>
 function Set-Records() {
     <#
     .DESCRIPTION
@@ -545,8 +564,7 @@ function Set-Records() {
     .PARAMETER Params
     Params.params - [hashtable], здесь то, что было передано скрипту в -ExtParams
     Обязательные ключи в HASHTABLE:
-        Params.Params.record - массив словарей ресурсных записей, которые надо удалить
-        Params.Params.record  - массив структур ресурсных записей для создания
+        Params.Params.records - массив словарей ресурсных записей, которые надо обновить
             @(
                 @{
                     recordId = <id_record>  - id запсис, которую надо обновить
@@ -593,7 +611,7 @@ function Set-Records() {
     }
     $resArray = @()
     # цикл по записям для удаления
-    $Params.params.record.foreach({
+    $Params.params.records.foreach({
         #Write-Verbose "$($_|ConvertTo-Json -Depth $LogLevel)"
         if ($_.Type.ToUpper() -eq "A") {
             $Service = 'recorda'
@@ -613,7 +631,7 @@ function Set-Records() {
             $Service = 'recordtxt'
             $_.Text = $_.Content
         } else {
-            $messError = "Запрос не может быть выполнен. Не указан (неверно задан) - $($_.Type.ToUpper()) - обязательный параметр <Params.params.record.type> - тип ресурсной записи, может быть одним из 'A', 'AAAA', 'CNAME', 'NS', 'TXT'."
+            $messError = "Запрос не может быть выполнен. Не указан (неверно задан) - $($_.Type.ToUpper()) - обязательный параметр <Params.params.records.type> - тип ресурсной записи, может быть одним из 'A', 'AAAA', 'CNAME', 'NS', 'TXT'."
             throw $messError
         }
         $_.Remove('Type')
@@ -653,6 +671,9 @@ function Set-Records() {
     return $resArray
 }
 
+<# ############################################################################################## #>
+<# ############################################################################################## #>
+<# ############################################################################################## #>
 function Invoke-Request() {
     <#
     .DESCRIPTION
@@ -699,7 +720,7 @@ function Invoke-Request() {
     Param(
         [Parameter(Mandatory=$true, Position=0, ValueFromPipeline=$true)]
         [hashtable] $Params,
-        [Parameter(Mandatory=$true, Position=1)]
+        [Parameter(Position=1)]
         [ValidateSet('Get','Post','Put','Delete', 'Patch')]
         [String] $Method="Get",
         [Parameter(Position=2)]
