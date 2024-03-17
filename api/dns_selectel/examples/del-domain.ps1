@@ -1,9 +1,15 @@
-﻿[CmdletBinding()]
+﻿<#
+USE
+v2 ONLY
+.\api\dns_selectel\examples\del-domain.ps1 -domain t33.mrovo.ru
+.\api\dns_selectel\examples\del-domain.ps1 -domain t33.mrovo.ru
+.\api\dns_selectel\examples\del-domain.ps1 -domain <id-domain>
+#>
+
+[CmdletBinding()]
 Param(
     [Parameter(ValueFromPipeline=$true, Position=0)]
-    [String]$domain='tt3.mrovo.ru',
-    [hashtable]$comment=@{'comment'=''},
-    [String]$ver='v2'
+    [String]$domain='tt3.mrovo.ru'
 )
 
 $r1=(.\rest-api.ps1 -Provider 'dns_selectel' `
@@ -21,7 +27,6 @@ $r1=(.\rest-api.ps1 -Provider 'dns_selectel' `
                 'domain'="$($domain)"; `
                 "_Service" = "$($domain)"; `
                 "Body"='test'; `
-                "domain_data"=$comment; `
                 '_Query'='offset=2&limit=2&show_ips=true'; `
                 '_record_id'=11264554 `
     } `

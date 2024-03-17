@@ -1,4 +1,13 @@
-﻿
+﻿<#
+USE
+v2
+.\api\dns_selectel\examples\add-record.ps1 -record @{"type"='A'; "ttl"=3600; "name"="d.t3.mrovo.ru"; "records"=@(@{"content"='1.2.3.4'},@{"content"='1.2.3.5'})} -domain f68e88b1-aaf6-43d0-9a3d-5bd70aba2f55
+.\api\dns_selectel\examples\add-record.ps1 -record @{"type"='A'; "ttl"=3600; "name"="d.t3.mrovo.ru"; "records"=@(@{"content"='1.2.3.4'},@{"content"='1.2.3.5'})} -domain t3.mrovo.ru
+v1
+.\api\dns_selectel\examples\add-record.ps1 -record @{"type"='A'; "ttl"=36000; "name"="d.t2.mrovo.ru"; "content"='1.2.3.4'} -ver 'v1' -domain 914366
+ .\api\dns_selectel\examples\add-record.ps1 -record @{"type"='A'; "ttl"=36000; "name"="d.t2.mrovo.ru"; "content"='1.2.3.4'} -ver 'v1' -domain t2.mrovo.ru
+#>
+
 [CmdletBinding()]
 Param(
     [Parameter(ValueFromPipeline=$true, Position=0)]
@@ -31,7 +40,7 @@ $r=(.\rest-api.ps1 -Provider 'dns_selectel' `
     -debug -verbose:$vb `
     -LogLevel 1 `
 );
-#Write-Output 'GLOBAL VAR $r1'
+
 $r
 
 exit
