@@ -1,4 +1,8 @@
-﻿[CmdletBinding()]
+﻿<# USE
+.\api\dns_selectel\examples\add-domain.ps1  -domain t33.mrovo.ru
+ #>
+ 
+[CmdletBinding()]
 Param(
     [Parameter(ValueFromPipeline=$true, Position=0)]
     [String]$domain='ce26d823-51a7-420d-8158-08450ca3c6ab',
