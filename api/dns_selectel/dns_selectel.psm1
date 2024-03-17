@@ -212,8 +212,11 @@ function Get-Domains() {
     #Write-Verbose "Переданные параметры: $($Params | ConvertTo-Json -Depth $LogLevel)"
 
     # дополнительно для строки запроса и ее параметров
-    if ($Params.Params.ContainsKey("Domain") -and $Params.Params.Domain -and ([String]$Params.Params.Domain).Trim()) {
-        $Params += @{'additionalUri' = ([String]$Params.Params.Domain).Trim()}
+    # имя или ID домена
+    if ( -not [bool]$Params.AllDomains) {
+        if ($Params.Params.ContainsKey("Domain") -and $Params.Params.Domain -and ([String]$Params.Params.Domain).Trim()) {
+            $Params += @{'additionalUri' = ([String]$Params.Params.Domain).Trim()}
+        }
     }
     #
     $Params += @{'queryGet' = ""}
@@ -227,6 +230,7 @@ function Get-Domains() {
             } elseif ($query -is [Array]) {
                 # тип массив строк
                 $Params.queryGet += [String]::Join('&', $query)
+
             }
         }
     }
@@ -668,7 +672,7 @@ function Add-Record() {
     if ($null -ne $record -and ($record -is [hashtable]) -or ($record -is [PSCustomObject]) -or ($record -is [psobject])  ) {
         $Body = $record
     } else {
-        $messError = "Запрос не может быть выполнен. Не определены или неверно заданы параметры ресурсной записи для домена $($Params.Params.Domain)."
+        $messError = "Запрос не может быть выполнен. Не определены или неверно заданы параметры ресурсной записи для домена $($Params.Params.record)."
     }
     if ($messError) {
         throw $messError
@@ -846,9 +850,9 @@ function Set-Record() {
     $messError = ""
     $record = $Params.params.record
     if ($null -ne $record -and ($record -is [hashtable]) -or ($record -is [PSCustomObject]) -or ($record -is [psobject])  ) {
-        $Body = $Params.params.record
+        $Body = $record
     } else {
-        $messError = "Запрос не может быть выполнен. Не определены или неверно заданы параметры ресурсной записи для домена $($Params.Params.Domain)."
+        $messError = "Запрос не может быть выполнен. Не определены или неверно заданы параметры ресурсной записи для домена $($Params.Params.record)."
     }
     if ($messError) {
         throw $messError
@@ -885,6 +889,240 @@ function Set-Record() {
         throw $resultAPI.StatusDescription
     }
 
+    Write-Verbose "Data return: "
+    Write-Verbose "$($res.resDomains)"
+    Write-Verbose "$($MyInvocation.InvocationName) LEAVE: ============================================="
+    return $res
+}
+
+<############################################################################################################>
+<###  ONLY v2 ###############################################################################################>
+<############################################################################################################>
+function Set-Domain() {
+    <#
+    .DESCRIPTION
+    Обновить данные для заданного домена
+    Поддерживается только API v2
+    .OUTPUTS
+    Name: res
+    BaseType: Hashtable
+        'raw'   - ответ от Invoke-WebRequest
+        'code'  - Invoke-WebRequest.StatusCode, т.е. результат возврата HTTP code
+        "resDomains" (Invoke-WebRequest.Content | ConvertFrom-Json), конвертированный Content в PSCustomObject
+    .PARAMETER Params
+    Params.params - [hashtable], здесь то, что было передано скрипту в -ExtParams
+    Обязательные ключи в HASHTABLE:
+        Params.Params.domain        - имя  или id домена
+        Params.Params.domain_data   - Hashtable, данные для домена:
+                                    {
+                                        "comment"=<String>
+                                    }
+    Необязательные ключи в HASHTABLE:
+    #>
+    #Requires -Version 3
+    [OutputType([Hashtable])]
+    [CmdletBinding()]
+    Param(
+        [Parameter(Mandatory=$true, Position=0, ValueFromPipeline=$true)]
+        [hashtable] $Params,
+        [Int] $LogLevel=1
+    )
+
+    Write-Verbose "$($MyInvocation.InvocationName) ENTER: ============================================="
+    #Write-Verbose "Переданные параметры: $($Params | ConvertTo-Json -Depth $LogLevel)"
+    # версия API
+    $VerAPI = (GetVersionAPI -Params $Params)
+    if ($VerAPI.ToLower() -eq 'v2' ) {
+        # domain
+        if ($Params.Params.ContainsKey("Domain") -and $Params.Params.Domain -and ([String]$Params.Params.Domain).Trim()) {
+            $d_id = GetIdDomain -Params $Params -LogLevel $LogLevel
+            #$Params += @{'additionalUri' = ([String]$Params.Params.Domain).Trim()}
+            $Params += @{'additionalUri' = "$($d_id)"}
+        } else {
+            $mess = "Запрос не может быть выполнен. Не указан обязательный параметр <Params.params.domain> - домен для которого надо обновить данные."
+            throw $mess
+        }
+        # готовим Body, данные для записи, для домена
+        $domain_data = @{};
+        $messError = ""
+        $domain_data = $Params.params.domain_data
+        if ($null -ne $domain_data -and ($domain_data -is [hashtable]) -or ($domain_data -is [PSCustomObject]) -or ($domain_data -is [psobject])  ) {
+            $Body = $domain_data
+        } else {
+            $messError = "Запрос не может быть выполнен. Не определены или неверно заданы параметры ресурсной записи для домена $($Params.Params.domain_data)."
+        }
+        if ($messError) {
+            throw $messError
+        }
+        #
+        # Method
+        $Method='Patch'
+        # параметры запроса
+        $requestParams = @{
+            "Params" = $Params;
+            "Method" = $Method;
+            "Service" = "";
+            "Body" = $Body;
+            "logLevel" = $LogLevel;
+        }
+        $resultAPI = (Invoke-Request @requestParams)
+        $res = @{
+            'raw'  = $resultAPI;
+            'code' = $resultAPI.StatusCode;
+        }
+        if ( ($res.Code -eq 200) -or ($res.Code -eq 204) ) { # OK
+            $res += @{
+                'resDomains' = $resultAPI.Content;
+            }
+        } else {
+            throw $resultAPI.StatusDescription
+        }
+    } else {
+        throw "Версия API $($VerAPI) не поддерживается. $($MyInvocation.InvocationName)"
+    }
+    Write-Verbose "Data return: "
+    Write-Verbose "$($res.resDomains)"
+    Write-Verbose "$($MyInvocation.InvocationName) LEAVE: ============================================="
+    return $res
+}
+
+<############################################################################################################>
+<###  ONLY v2 ###############################################################################################>
+<############################################################################################################>
+function Add-Domain() {
+    <#
+    .DESCRIPTION
+    Добавить заданный домен
+    Поддерживается только API v2
+    .OUTPUTS
+    Name: res
+    BaseType: Hashtable
+        'raw'   - ответ от Invoke-WebRequest
+        'code'  - Invoke-WebRequest.StatusCode, т.е. результат возврата HTTP code
+        "resDomains" (Invoke-WebRequest.Content | ConvertFrom-Json), конвертированный Content в PSCustomObject
+    .PARAMETER Params
+    Params.params - [hashtable], здесь то, что было передано скрипту в -ExtParams
+    Обязательные ключи в HASHTABLE:
+        Params.Params.domain        - имя домена, который надо создать
+    Необязательные ключи в HASHTABLE:
+    #>
+    #Requires -Version 3
+    [OutputType([Hashtable])]
+    [CmdletBinding()]
+    Param(
+        [Parameter(Mandatory=$true, Position=0, ValueFromPipeline=$true)]
+        [hashtable] $Params,
+        [Int] $LogLevel=1
+    )
+
+    Write-Verbose "$($MyInvocation.InvocationName) ENTER: ============================================="
+    #Write-Verbose "Переданные параметры: $($Params | ConvertTo-Json -Depth $LogLevel)"
+    # версия API
+    $VerAPI = (GetVersionAPI -Params $Params)
+    if ($VerAPI.ToLower() -eq 'v2' ) {
+        # domain
+        if ($Params.Params.ContainsKey("Domain") -and $Params.Params.Domain -and ([String]$Params.Params.Domain).Trim() -and [String]$Params.Params.Domain.Contains('.') ) {
+            $Body=@{"name"="$(([String]$Params.Params.Domain).Trim())"}
+        } else {
+            $mess = "Запрос не может быть выполнен. Не указан обязательный параметр <Params.params.domain> - домен который надо создать."
+            throw $mess
+        }
+        # Method
+        $Method='Post'
+        # параметры запроса
+        $requestParams = @{
+            "Params" = $Params;
+            "Method" = $Method;
+            "Service" = "";
+            "Body" = $Body;
+            "logLevel" = $LogLevel;
+        }
+        $resultAPI = (Invoke-Request @requestParams)
+        $res = @{
+            'raw'  = $resultAPI;
+            'code' = $resultAPI.StatusCode;
+        }
+        if ( ($res.Code -eq 200) -or ($res.Code -eq 204) ) { # OK
+            $res += @{
+                'resDomains' = $resultAPI.Content;
+            }
+        } else {
+            throw $resultAPI.StatusDescription
+        }
+    } else {
+        throw "Версия API $($VerAPI) не поддерживается. $($MyInvocation.InvocationName)"
+    }
+    Write-Verbose "Data return: "
+    Write-Verbose "$($res.resDomains)"
+    Write-Verbose "$($MyInvocation.InvocationName) LEAVE: ============================================="
+    return $res
+}
+
+<############################################################################################################>
+<###  ONLY v2 ###############################################################################################>
+<############################################################################################################>
+function Remove-Domain() {
+    <#
+    .DESCRIPTION
+    Удалить заданный домен
+    Поддерживается только API v2
+    .OUTPUTS
+    Name: res
+    BaseType: Hashtable
+        'raw'   - ответ от Invoke-WebRequest
+        'code'  - Invoke-WebRequest.StatusCode, т.е. результат возврата HTTP code
+        "resDomains" (Invoke-WebRequest.Content | ConvertFrom-Json), конвертированный Content в PSCustomObject
+    .PARAMETER Params
+    Params.params - [hashtable], здесь то, что было передано скрипту в -ExtParams
+    Обязательные ключи в HASHTABLE:
+        Params.Params.domain        - имя домена или ID, который надо удалить
+    Необязательные ключи в HASHTABLE:
+    #>
+    #Requires -Version 3
+    [OutputType([Hashtable])]
+    [CmdletBinding()]
+    Param(
+        [Parameter(Mandatory=$true, Position=0, ValueFromPipeline=$true)]
+        [hashtable] $Params,
+        [Int] $LogLevel=1
+    )
+
+    Write-Verbose "$($MyInvocation.InvocationName) ENTER: ============================================="
+    #Write-Verbose "Переданные параметры: $($Params | ConvertTo-Json -Depth $LogLevel)"
+    # версия API
+    $VerAPI = (GetVersionAPI -Params $Params)
+    if ($VerAPI.ToLower() -eq 'v2' ) {
+        # domain
+        if ($Params.Params.ContainsKey("Domain") -and $Params.Params.Domain -and ([String]$Params.Params.Domain).Trim() -and [String]$Params.Params.Domain.Contains('.') ) {
+            $d_id = GetIdDomain -Params $Params -LogLevel $LogLevel
+            $Params += @{'additionalUri' = "$($d_id)"}
+        } else {
+            $mess = "Запрос не может быть выполнен. Не указан обязательный параметр <Params.params.domain> - домен который надо удалить."
+            throw $mess
+        }
+        # Service
+        $Method='Delete'
+        $requestParams = @{
+            "Params" = $Params;
+            "Method" = $Method;
+            "Service" = "";
+            "logLevel" = $LogLevel;
+        }
+        $resultAPI = (Invoke-Request @requestParams)
+        $res = @{
+            'raw'  = $resultAPI;
+            'code' = $resultAPI.StatusCode;
+        }
+        if ( $res.Code -eq 204 ) { # OK
+            $res += @{
+                'resDomains' = $resultAPI.Content;
+            }
+        } else {
+            throw $resultAPI.StatusDescription
+        }
+    } else {
+        throw "Версия API $($VerAPI) не поддерживается. $($MyInvocation.InvocationName)"
+    }
     Write-Verbose "Data return: "
     Write-Verbose "$($res.resDomains)"
     Write-Verbose "$($MyInvocation.InvocationName) LEAVE: ============================================="
@@ -1256,6 +1494,76 @@ function GetVersionAPI() {
     return ([string]$Params.sectionData.result.version).Trim().ToLower()
 }
 
+
+function GetIdDomain(){
+    <#
+    .DESCRIPTION
+    Вернуть ID домена по имени. Параметр может быть или именем домена или его ID.
+    .OUTPUTS
+    Name: res
+    BaseType: String
+    .PARAMETER Params
+    Params.params - [hashtable], здесь то, что было передано скрипту в -ExtParams
+    Обязательные ключи в HASHTABLE:
+        Params.Params.domain        - имя  или id домена.
+                                      Если в значении есть символ '.', то это имя и требуется найти его ID,
+                                      иначе считается, что это ID и надо его вернуть
+    Необязательные ключи в HASHTABLE:
+    #>
+    #Requires -Version 3
+    [OutputType([String])]
+    Param(
+        [Parameter(Mandatory=$true, Position=0, ValueFromPipeline=$true)]
+        [hashtable] $Params,
+        [Int] $LogLevel=1
+    )
+    Write-Verbose "$($MyInvocation.InvocationName) ENTER: ============================================="
+    if ( (-not $Params.ContainsKey('params')) -or (-not $Params.params.ContainsKey('domain')) ) {
+        throw("Не передан обязательный параметр Params.params.domain")
+    }
+    $domain = $Params.params.domain
+    if ( $null -eq $domain) {
+        throw("Обязательный параметр Params.params.domain не может быть null")
+    }
+    if ($domain -isnot [string]) {
+        throw("Обязательный параметр Params.params.domain имеет неверный тип, должен быть String")
+    } 
+    $domain = $domain.trim().ToLower()
+    if ($domain -eq "") {
+        throw("Обязательный параметр Params.params.domain не может быть пустым")
+    }
+    if ($domain.Contains('.')) {
+        # в Params.params.domain было передано имя и надо для него получть ID
+        $Params.AllDomains = $true;
+        if ($Params.params.ContainsKey('Service')) {
+            $Params.params.service = '';
+        }
+        $list_domains = Get-Domains -Params $Params -LogLevel $LogLevel
+        $Params.Remove('AllDomains');
+        if ( -not $domain.EndsWith('.')) {
+            $domain += '.'
+        }
+        $res=''
+        if ($list_domains.code -eq 200) {
+            # получили список доменов без ошибок
+            foreach ($dom in $list_domains.resDomains.result) {
+                if ($domain -eq $dom.Name.ToLower()) {
+                    $res = $dom.id
+                    break
+                }
+            }
+        }
+        if ($res -eq '') {
+            throw ("Не нашли ID для домена $($domain), нет такой зоны в хостинге DNS $($Param.provider)")
+        }
+    } else {
+        # в Params.params.domain был передан ID, его и возвращаем
+        $res = $domain
+    }
+    Write-Verbose "Возвращаемое значение (res): $($res)"
+    Write-Verbose "$($MyInvocation.InvocationName) LEAVE: ============================================="
+    return $res
+}
 
 #Set-Alias -Value Get-Domains -Name domains
 #Export-ModuleMember -Function Invoke-API -Alias domains
