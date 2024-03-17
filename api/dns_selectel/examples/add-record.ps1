@@ -31,7 +31,7 @@ $r=(.\rest-api.ps1 -Provider 'dns_selectel' `
     -debug -verbose:$vb `
     -LogLevel 1 `
 );
-#Write-Output 'GLOBAL VAR $r1'
+
 $r
 
 exit

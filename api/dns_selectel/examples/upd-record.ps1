@@ -26,7 +26,7 @@ $r=(.\rest-api.ps1 -Provider 'dns_selectel' `
         "Body"='test'; `
         'Query'='offset=0&limit=22&show_ips=true'; `
         'record_id'=$($record_id); `
-        "record"=$($record) `
+        "record"=$record `
     } `
     -PathIncludes 'D:\Tools\~scripts.ps\avvClasses\classes' `
     -Action 'rUpd' `
