@@ -305,7 +305,8 @@ if ($Action.ToUpper() -eq '_TEST_') {
     
     #$result.raw.Providers += ("test_file"    | Get-FileProvider -Vars $cv -Verbose:$PSBoundParameters.Verbose -LogLevel $LogLevel)
     #$result.raw.Providers += ("test_ds_file" | Get-FileProvider -Vars $cv -Verbose:$PSBoundParameters.Verbose -LogLevel $LogLevel -IsDotSourcing)
-    $result.raw.Providers += ("test_mod"     | Get-FileProvider -Vars $cv -Verbose:$PSBoundParameters.Verbose -LogLevel $LogLevel)
+    #$result.raw.Providers += ("test_mod"     | Get-FileProvider -Vars $cv -Verbose:$PSBoundParameters.Verbose -LogLevel $LogLevel)
+    $result.raw.Providers += ("test_mod"     | Get-FileProvider -Vars $cv -LogLevel $LogLevel)
     $result.raw.Providers.Keys.ForEach({
         Write-Verbose $_
         $p = @{
@@ -336,7 +337,8 @@ if ($Action.ToUpper() -eq '_TEST_') {
     Write-Verbose "Working... =========================================="
     $p = @{"cmd" = $Action; "provider"="$($Provider)"; "vars"=$cv; "params"=$ExtParams}
     Write-Verbose "параметры для передачи в маршрутизацию:`n$($p|ConvertTo-Json -Depth $LogLevel)"
-    $result.raw.Providers += ("$($Provider)" | Get-FileProvider -Vars $cv -Verbose:$PSBoundParameters.Verbose -LogLevel $LogLevel)
+    #$result.raw.Providers += ("$($Provider)" | Get-FileProvider -Vars $cv -Verbose:$Verbose -LogLevel $LogLevel)
+    $result.raw.Providers += ("$($Provider)" | Get-FileProvider -Vars $cv -LogLevel $LogLevel)
     $command = "Get-Invoke-API $(if ($PSBoundParameters.Verbose) { "-Verbose" }) -LogLevel $($LogLevel) -Params " + '$($p)'
     Write-Verbose "command: $($command)"
     $rm = (Invoke-Expression -Command $command)
