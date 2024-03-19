@@ -33,20 +33,10 @@
     .OUTPUTS
     Name: result
     BaseType: Hashtable
-        - [ErrorRecord[]]Errors = @()  : записи Exception, возвращаемая из API
-        - [hashtable] raw = @{}     :
-        - [int] retCode             : числовой код возврата.
-                0   - нет ошибок
-                < 0 - критические ошибки
-                > 0:
-                    0-1999 - правильные кода возврата
-                    1000-2999 - предупреждения
-                    4000-4999 - коды возврата http+4000 (yfghbvth 4200 - Ok; 4400 Authority error и т.д.)
-        - [String] message      : сообщение, поясняющее код возврата
-        - [Hashtable] resAPI    : структура для возврата из вызываемой функции, соответствующей cmd(Action)
-        - [System.Collections.Generic.List[String]]
-            logs                : массив сообщений
-        - [ErrorRecord] error   : запись Exception, возвращаемая из API
+        - [hashtable]Errors = @{}
+        - [hashtable]raw    = @{}   :
+        - [int]retCode      =       : числовой код возврата = HTTP code.
+        - [Hashtable]result         : сообщение, поясняющее код возврата
 #>
 [CmdletBinding()]
 [OutputType([Hashtable])]
