@@ -73,8 +73,8 @@ Write-Verbose "PathIncludes: $($PathIncludes)"
 Write-Verbose "Module: $($Module)"
 Write-Verbose "PSBoundParameters.Debug: $($PSBoundParameters.Debug)"
 Write-Verbose "PSBoundParameters.Debug.IsPresent: $($PSBoundParameters.Debug.IsPresent)"
-Write-Verbose "PSBoundParameters.Verbose: $($PSBoundParameters.Verbose)"
-Write-Verbose "PSBoundParameters.Verbose.IsPresent: $($PSBoundParameters.Verbose.IsPresent)"
+Write-Verbose "PSBoundParameters.Verbose: $([bool]$PSBoundParameters.Verbose)"
+Write-Verbose "PSBoundParameters.Verbose.IsPresent: $([bool]$PSBoundParameters.Verbose.IsPresent)"
 
 <###### Проверить переданные параметры ######>
 # каталог откуда запускается скрипт
@@ -185,6 +185,7 @@ if ( ! $cv.IsImportModule) {
     #$pathModules = @('.\', '.classes','classes')
 
     $nameModules = @(@{"Name"='avvBase.ps1'; "Required"=$True;}, @{"Name"='classCFG.ps1'; "Required"=$True; "Action"=[ActionWithModule]::dotSourcing}, @{"Name"="ddd"; "Required"=$false})
+    #$nameModules = @(@{"Name"='avvBase.ps1'; "Required"=$True; "Action"=[ActionWithModule]::Import}, @{"Name"='classCFG.ps1'; "Required"=$True; "Action"=[ActionWithModule]::Import}, @{"Name"="ddd"; "Required"=$false})
     $listModules=($nameModules | Get-ArrayModules -Path $PathIncludes -Vars $cv -IncludeCommon)
     $listModules.Keys.ForEach({
         $item=$listModules[$_]
@@ -260,7 +261,8 @@ if ($cv.IsImportModule) {
     }
     $cv.addProperty('className', $className)
     # создали объет для файла конфигурации
-    $cv.ini=(Get-AvvClass -ClassName $className -Params $ExtParams -Verbose:($PSBoundParameters.Verbose))
+    #$p = @{'ClassName'= $className; 'Params'=$ExtParams; 'Verbose'=[bool]$PSBoundParameters.Verbose}
+    $cv.ini=(Get-AvvClass -ClassName $className -Params $ExtParams -Verbose:([bool]$PSBoundParameters.Verbose))
 } elseif ($cv.isDotSourcing) {
     # были dotsourcing модули
     if ($cv.typeConfigFile -eq 'INI') {
