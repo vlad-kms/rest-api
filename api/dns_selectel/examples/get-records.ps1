@@ -23,8 +23,6 @@ $r1=(.\rest-api.ps1 -Provider 'dns_selectel' `
                 '_Query'='offset=2&limit=2&show_ips=true';
                 'record_id'="$($record)" `
     } `
-    -Module D:\Tools\~scripts.ps\avvClasses1 `
-    -PathIncludes 'D:\Tools\~scripts.ps\avvClasses\classes' `
     -Action 'grs' `
     -debug `
     -verbose:$v `

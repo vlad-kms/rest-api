@@ -21,7 +21,6 @@ $global:r=(.\rest-api.ps1 -Provider 'dns_selectel' -FileIni "E:\!my-configs\conf
         'Query'='offset=0&limit=22&show_ips=true';
         '_record_id'=11264554
     } `
-    -PathIncludes 'D:\Tools\~scripts.ps\avvClasses\classes' `
     -Action 'stateSet' `
     -debug `
     -verbose:$vb `

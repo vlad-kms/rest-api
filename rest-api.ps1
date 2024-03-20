@@ -33,20 +33,10 @@
     .OUTPUTS
     Name: result
     BaseType: Hashtable
-        - [ErrorRecord[]]Errors = @()  : записи Exception, возвращаемая из API
-        - [hashtable] raw = @{}     :
-        - [int] retCode             : числовой код возврата.
-                0   - нет ошибок
-                < 0 - критические ошибки
-                > 0:
-                    0-1999 - правильные кода возврата
-                    1000-2999 - предупреждения
-                    4000-4999 - коды возврата http+4000 (yfghbvth 4200 - Ok; 4400 Authority error и т.д.)
-        - [String] message      : сообщение, поясняющее код возврата
-        - [Hashtable] resAPI    : структура для возврата из вызываемой функции, соответствующей cmd(Action)
-        - [System.Collections.Generic.List[String]]
-            logs                : массив сообщений
-        - [ErrorRecord] error   : запись Exception, возвращаемая из API
+        - [hashtable]Errors = @{}
+        - [hashtable]raw    = @{}   :
+        - [int]retCode      =       : числовой код возврата = HTTP code.
+        - [Hashtable]result         : сообщение, поясняющее код возврата
 #>
 [CmdletBinding()]
 [OutputType([Hashtable])]
@@ -83,8 +73,8 @@ Write-Verbose "PathIncludes: $($PathIncludes)"
 Write-Verbose "Module: $($Module)"
 Write-Verbose "PSBoundParameters.Debug: $($PSBoundParameters.Debug)"
 Write-Verbose "PSBoundParameters.Debug.IsPresent: $($PSBoundParameters.Debug.IsPresent)"
-Write-Verbose "PSBoundParameters.Verbose: $($PSBoundParameters.Verbose)"
-Write-Verbose "PSBoundParameters.Verbose.IsPresent: $($PSBoundParameters.Verbose.IsPresent)"
+Write-Verbose "PSBoundParameters.Verbose: $([bool]$PSBoundParameters.Verbose)"
+Write-Verbose "PSBoundParameters.Verbose.IsPresent: $([bool]$PSBoundParameters.Verbose.IsPresent)"
 
 <###### Проверить переданные параметры ######>
 # каталог откуда запускается скрипт
@@ -195,6 +185,7 @@ if ( ! $cv.IsImportModule) {
     #$pathModules = @('.\', '.classes','classes')
 
     $nameModules = @(@{"Name"='avvBase.ps1'; "Required"=$True;}, @{"Name"='classCFG.ps1'; "Required"=$True; "Action"=[ActionWithModule]::dotSourcing}, @{"Name"="ddd"; "Required"=$false})
+    #$nameModules = @(@{"Name"='avvBase.ps1'; "Required"=$True; "Action"=[ActionWithModule]::Import}, @{"Name"='classCFG.ps1'; "Required"=$True; "Action"=[ActionWithModule]::Import}, @{"Name"="ddd"; "Required"=$false})
     $listModules=($nameModules | Get-ArrayModules -Path $PathIncludes -Vars $cv -IncludeCommon)
     $listModules.Keys.ForEach({
         $item=$listModules[$_]
@@ -270,7 +261,8 @@ if ($cv.IsImportModule) {
     }
     $cv.addProperty('className', $className)
     # создали объет для файла конфигурации
-    $cv.ini=(Get-AvvClass -ClassName $className -Params $ExtParams -Verbose:($PSBoundParameters.Verbose))
+    #$p = @{'ClassName'= $className; 'Params'=$ExtParams; 'Verbose'=[bool]$PSBoundParameters.Verbose}
+    $cv.ini=(Get-AvvClass -ClassName $className -Params $ExtParams -Verbose:([bool]$PSBoundParameters.Verbose))
 } elseif ($cv.isDotSourcing) {
     # были dotsourcing модули
     if ($cv.typeConfigFile -eq 'INI') {

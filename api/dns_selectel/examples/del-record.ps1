@@ -28,7 +28,6 @@ $r=(.\rest-api.ps1 -Provider 'dns_selectel' `
         'record_id'=$($record); `
         "record"=$($record) `
     } `
-    -PathIncludes 'D:\Tools\~scripts.ps\avvClasses\classes' `
     -Action 'rDel' `
     -debug -verbose:$vb `
     -LogLevel 1 `

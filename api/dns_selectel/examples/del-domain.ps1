@@ -30,8 +30,6 @@ $r1=(.\rest-api.ps1 -Provider 'dns_selectel' `
                 '_Query'='offset=2&limit=2&show_ips=true'; `
                 '_record_id'=11264554 `
     } `
-    -Module D:\Tools\~scripts.ps\avvClasses1 `
-    -PathIncludes 'D:\Tools\~scripts.ps\avvClasses\classes' `
     -Action 'dDEL' `
     -LogLevel 1 `
 );
