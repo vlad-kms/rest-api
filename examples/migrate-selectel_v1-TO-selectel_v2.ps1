@@ -168,8 +168,8 @@ process {
         Start-Sleep -Milliseconds 200
     }
 
-
     # Теперь запишем их в actual
+    
 }
 end {
     $s = "$($MyInvocation.InvocationName) LEAVE: ============================================="
