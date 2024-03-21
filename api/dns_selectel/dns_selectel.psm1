@@ -175,6 +175,118 @@ function Get-Test() {
 <###  v1 and v2 #############################################################################################>
 <###  Получить домены                                                                                     ###>
 <############################################################################################################>
+function Get-DomainsAll
+{
+    <#
+    .DESCRIPTION
+    Получить все ресурсные записи домена.
+    v1: GET /; https://api.selectel.ru/domains/v1/
+    v2: GET /zones; https://api.selectel.ru/domains/v2/zones
+    .OUTPUTS
+    Name: res
+    BaseType: Hashtable
+        'raw'   - ответ от Invoke-WebRequest
+        'code'  - Invoke-WebRequest.StatusCode, т.е. результат возврата HTTP code
+        "resDomains" (Invoke-WebRequest.Content | ConvertFrom-Json), конвертированный Content в PSCustomObject
+    .PARAMETER Params
+    Params.params - [hashtable], здесь то, что было передано скрипту в -ExtParams
+        Обязательные ключи в HASHTABLE:
+    нет
+        Необязательные ключи в HASHTABLE:
+    Params.Params.domain  - имя или id домена, будет выбираться данные только о нем
+    Params.params.query   - аргументы для строки запроса (?arg=1&arg2=qwe&arg3=3...).
+                            Может быть строкой, первый '?' не обязателен.
+                            Может быть массивом @('arg=1', 'arg2=qwe', 'arg3=3', ...), будет преобразован в строку запроса
+    Params.Params.UseInitialOffset -наличие (значение не обязательно) указывает использовать начальное значение offset из параметра запроса,
+                                    иначе offset обнуляется
+    #>
+    #Requires -Version 3
+    [OutputType([Hashtable])]
+    [CmdletBinding()]
+    Param(
+        [Parameter(Mandatory=$true, Position=0, ValueFromPipeline=$true)]
+        [hashtable] $Params,
+        [Int] $LogLevel=1
+    )
+    Write-Verbose "$($MyInvocation.InvocationName) ENTER: ============================================="
+
+    [Int]$Limit=1000
+    [Int]$Offset=0
+# версия API
+    $VerAPI = (GetVersionAPI -Params $Params)
+    # если есть Query, то в нем убрать аргументы limit и
+    # linit, offset по-умолчанию
+    $h_limit=$Limit
+    if ($Params.Params.ContainsKey('Query') -and $Params.Params.Query -and $Params.Params.Query.trim() ) {
+        if ($Params.Params.Query -match '(?ins)(?<fc>\?|&|^)(?<lm>limit=)(?<dg>\d+)(?<lc>&|$)') {
+            # есть limit в запросе, получить значение в переменную
+            $h_limit = [int]$Matches.dg
+        } else {
+            # нет limit среди параметров запроса
+            $Params.Params.Query += "&limit=$($Limit)"
+        }
+        $Pattern='(?ins)(?<fc>\?|&|^)(?<lm>offset=)(?<dg>\d+)(?<lc>&|$)'
+        if ($Params.Params.Query -match $Pattern) {
+            if ( -not $Params.Params.ContainsKey('UseInitialOffset') )  {
+                # есть offset среди параметров запроса, установить значение в 0
+                $Params.params.Query = ($Params.params.Query -replace $Pattern, '${fc}${lm}0${lc}')
+            }
+        } else {
+            # нет offset среди параметров запроса
+            $Params.Params.Query += "&offset=$($Offset)"
+        }
+    } else {
+        # пустой или $null Query
+        $Params.Params.Query = "limit=$($Limit)&offset=$($Offset)"
+    }
+    # Читать домены частями до конца
+    # вернуть часть доменов
+    $full_res = @()
+    if ($VerAPI -eq 'v1') {
+        do {
+            $res_tmp = (Get-Domains -Params $Params -LogLevel $LogLevel)
+            $full_res += $res_tmp.resDomains
+            if ($res_tmp.raw.Headers.ContainsKey('x-total-count')) {
+                $count = [int]($res_tmp.raw.Headers."x-total-count")
+            } else {
+                $count = 0
+            }
+            <#
+            if ($res_tmp.raw.Headers.ContainsKey('x-limit')) {
+                $h_limit = [int]($res_tmp.raw.Headers.'x-limit')
+            }
+            else {
+                $h_limit = 0
+            }
+            #>
+            if ($res_tmp.raw.Headers.ContainsKey('x-offset')) {
+                $h_offset = [int]($res_tmp.raw.Headers.'x-offset')
+            } else {
+                $h_offset = 0
+            }
+            # заменить значения для аргументов &limit= и &offset=
+            $Params.params.Query = ($Params.params.Query -replace '(?ins)(?<fc>\?|&|^)(?<lm>limit=)(?<dg>\d+)(?<lc>&|$)', "`${fc}`${lm}$($h_limit)`${lc}")
+            $Params.params.Query = ($Params.params.Query -replace '(?ins)(?<fc>\?|&|^)(?<lm>offset=)(?<dg>\d+)(?<lc>&|$)', "`${fc}`${lm}$($h_offset+$h_limit)`${lc}")
+        } while ( $count -gt ($h_limit + $h_offset) )
+
+    } elseif  ($VerAPI -eq 'v2') {
+        # version API v2
+        $res_tmp = (Get-Domains -Params $Params -LogLevel $LogLevel)
+        $full_res += $res_tmp.resDomains.result
+        $count = [int]$res_tmp.resDomains.count
+        $h_offset = [int]$res_tmp.resDomains.next_offset
+} else {
+        throw "Непподерживаемая версия API: $($VerAPI)"
+    }
+    $res_tmp.resDomains = $full_res
+    # проверить, что считали все части
+    #$res_tmp.
+
+    Write-Verbose "content TO object: $($resultAPI.resDomains)"
+    Write-Verbose "$($MyInvocation.InvocationName) LEAVE: ============================================="
+    return $res_tmp
+}
+
 function Get-Domains() {
     <#
     .DESCRIPTION
@@ -196,7 +308,6 @@ function Get-Domains() {
     Params.params.query   - аргументы для строки запроса (?arg=1&arg2=qwe&arg3=3...).
                             Может быть строкой, первый '?' не обязателен.
                             Может быть массивом @('arg=1', 'arg2=qwe', 'arg3=3', ...), будет преобразован в строку запроса
-
     #>
     #Requires -Version 3
     [OutputType([Hashtable])]
