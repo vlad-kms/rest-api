@@ -8,6 +8,7 @@ Param(
     [string]$act='gds'
 )
 
+$dt=(get-date)
 $r1=(.\rest-api.ps1 -Provider 'dns_selectel' `
     -FileIni "E:\!my-configs\configs\src\dns-api\config.json" `
     -ExtParams (@{
@@ -31,5 +32,9 @@ $r1=(.\rest-api.ps1 -Provider 'dns_selectel' `
     -Verbose:$v `
     -LogLevel 1
 );
-
+$dd=(Get-Date)-$dt
+Write-Host -ForegroundColor DarkGreen "Начали: $($dt)"
+Write-Host -ForegroundColor DarkGreen "Закончили: $(Get-Date)"
+Write-Host -ForegroundColor DarkGreen "Выполнено за: $($dd.Seconds) сек"
+Write-Host -ForegroundColor DarkGreen "Выполнено за: $($dd.Milliseconds) мс"
 $r1

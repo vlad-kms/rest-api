@@ -187,7 +187,7 @@ function Get-DomainsAll
     BaseType: Hashtable
         'raw'   - ответ от Invoke-WebRequest
         'code'  - Invoke-WebRequest.StatusCode, т.е. результат возврата HTTP code
-        "resDomains" (Invoke-WebRequest.Content | ConvertFrom-Json), конвертированный Content в PSCustomObject
+        "resDomains" массив записей о доменах
     .PARAMETER Params
     Params.params - [hashtable], здесь то, что было передано скрипту в -ExtParams
         Обязательные ключи в HASHTABLE:
@@ -265,23 +265,24 @@ function Get-DomainsAll
                 $h_offset = 0
             }
             # заменить значения для аргументов &limit= и &offset=
-            $Params.params.Query = ($Params.params.Query -replace '(?ins)(?<fc>\?|&|^)(?<lm>limit=)(?<dg>\d+)(?<lc>&|$)', "`${fc}`${lm}$($h_limit)`${lc}")
+            #$Params.params.Query = ($Params.params.Query -replace '(?ins)(?<fc>\?|&|^)(?<lm>limit=)(?<dg>\d+)(?<lc>&|$)', "`${fc}`${lm}$($h_limit)`${lc}")
             $Params.params.Query = ($Params.params.Query -replace '(?ins)(?<fc>\?|&|^)(?<lm>offset=)(?<dg>\d+)(?<lc>&|$)', "`${fc}`${lm}$($h_offset+$h_limit)`${lc}")
         } while ( $count -gt ($h_limit + $h_offset) )
 
     } elseif  ($VerAPI -eq 'v2') {
         # version API v2
-        $res_tmp = (Get-Domains -Params $Params -LogLevel $LogLevel)
-        $full_res += $res_tmp.resDomains.result
-        $count = [int]$res_tmp.resDomains.count
-        $h_offset = [int]$res_tmp.resDomains.next_offset
-} else {
+        do {
+            $res_tmp = (Get-Domains -Params $Params -LogLevel $LogLevel)
+            $full_res += $res_tmp.resDomains.result
+            # заменить значения для аргументов &limit= и &offset=
+            #$h_limit=[int]$res_tmp.resDomains.next_offset
+            $Params.params.Query = ($Params.params.Query -replace '(?ins)(?<fc>\?|&|^)(?<lm>offset=)(?<dg>\d+)(?<lc>&|$)', "`${fc}`${lm}$([int]$res_tmp.resDomains.next_offset)`${lc}")
+        } while ($res_tmp.resDomains.next_offset -ne 0)
+    } else {
         throw "Непподерживаемая версия API: $($VerAPI)"
     }
-    $res_tmp.resDomains = $full_res
-    # проверить, что считали все части
-    #$res_tmp.
 
+    $res_tmp.resDomains = $full_res
     Write-Verbose "content TO object: $($resultAPI.resDomains)"
     Write-Verbose "$($MyInvocation.InvocationName) LEAVE: ============================================="
     return $res_tmp
@@ -1404,7 +1405,7 @@ function Invoke-Request() {
 
     # подготовка тела запроса Body
     if ($Method.ToLower() -notin @('get', 'delete')) {
-        # пропустить для -Method GET
+        # пропустить для -Method GET, DELETE
         if ( ($Body -is [hashtable] -or $Body -is [psobject] -or $Bosy -is [PSCustomObject]) -and ($null -ne $Body) ) {
             $Body = ($Body | ConvertTo-Json)
         } elseif ($Body -is [string] -and $Body -and $Body.Trim()) {
