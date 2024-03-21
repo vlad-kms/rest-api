@@ -4,7 +4,8 @@ Param(
     [String]$domain='',
     [String]$ver='v2',
     [switch]$v,
-    [hashtable]$ExP=@{}
+    [hashtable]$ExP=@{},
+    [string]$act='gds'
 )
 
 $r1=(.\rest-api.ps1 -Provider 'dns_selectel' `
@@ -25,7 +26,7 @@ $r1=(.\rest-api.ps1 -Provider 'dns_selectel' `
                 '_Query'='show_ips=true&limit=2';
                 '_record_id'=11264554 `
     } + $ExP)`
-    -Action 'gds' `
+    -Action $act `
     -debug `
     -Verbose:$v `
     -LogLevel 1
