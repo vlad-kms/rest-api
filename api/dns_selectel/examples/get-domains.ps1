@@ -5,7 +5,8 @@ Param(
     [String]$ver='v2',
     [switch]$v,
     [hashtable]$ExP=@{},
-    [string]$act='gds'
+    [string]$act='gds',
+    [int]$useEnv=0
 )
 
 $dt=(get-date)
@@ -17,7 +18,7 @@ $r1=(.\rest-api.ps1 -Provider 'dns_selectel' `
                     'dns_selectel'=@{
                         'version'="$($ver)";
                         "config_v2"=@{
-                            "token_use_env"="0"
+                            "token_use_env"="$($useEnv)"
                         }
                     }
                 };

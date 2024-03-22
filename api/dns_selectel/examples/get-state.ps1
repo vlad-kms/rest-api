@@ -1,11 +1,11 @@
 ﻿[CmdletBinding()]
 Param(
-    [String]$domain='ce26d823-51a7-420d-8158-08450ca3c6ab',
+    [String]$domain='f68e88b1-aaf6-43d0-9a3d-5bd70aba2f55',
     [String]$ver='v2'
 )
 
 $vb=$false
-$global:r1=(.\rest-api.ps1 -Provider 'dns_selectel' `
+$r1=(.\rest-api.ps1 -Provider 'dns_selectel' `
     -FileIni "E:\!my-configs\configs\src\dns-api\config.json" `
     -ExtParams @{
                 "sectionName"="dns_selectel"; 
@@ -24,6 +24,11 @@ $global:r1=(.\rest-api.ps1 -Provider 'dns_selectel' `
     -LogLevel 1);
 
 Write-Host "domain: $($domain)"
+
+
+$r1
+
+exit
 
 Write-Output "======================================Get-State"
 Write-Output "Version API: $($ver)`nDomain: $($domain)"
