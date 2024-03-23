@@ -295,3 +295,22 @@ function ConvertPSObjectToHashtable
         }
     }
 }
+
+<#
+.SYNOPSIS
+HasProperty -Value Object -Property "Name"
+HasProperty Object "Name"
+
+.DESCRIPTION
+Содержит ли Hashtable, PSCustomObject или Object свойство Name
+
+.PARAMETER InputObject
+Parameter description
+
+.EXAMPLE
+An example
+
+.NOTES
+General notes
+#>
+

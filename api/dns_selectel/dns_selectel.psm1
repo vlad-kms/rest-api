@@ -124,15 +124,6 @@ function Get-SupportedFeatures() {
     if ($sectionIni.ContainsKey("actions")) {
         $result += $sectionIni.actions
     }
-    <#
-    $result = @{
-        "test"="Get-Test";
-        "GetRecords"="Get-Records";
-        "grs"="Get-Records";
-        "domains"="Get-Domains";
-        "gds"="Get-Domains";
-    }
-    #>
     $result.GetEnumerator().Name | ForEach-Object {
         if ( -not $result.$_.Trim() ) {
             $result."$($_)" = $_
@@ -220,7 +211,43 @@ function DomainInArray(){
     return $res
 }
 
-function Get-DomainsAll() {
+function ParseQueryParams(){
+    #Requires -Version 3
+    [OutputType([Hashtable])]
+    [CmdletBinding()]
+    Param(
+        [Parameter(Mandatory=$true, Position=0, ValueFromPipeline=$true)]
+        $Query,
+        [Int]$LogLevel=1
+    )
+    Write-Verbose "$($MyInvocation.InvocationName) ENTER: ============================================="
+    Write-Verbose "Строка запроса: $($Query)"
+    $res=@{}
+
+    if ($null -ne $Query) {
+        if ($Query -is [String]) {
+            # строку параметров в массив строк вида name=value
+            [String[]]$Query=$Query.trim().split(@('&', '?'), [System.StringSplitOptions]::RemoveEmptyEntries)
+        }
+
+        if ($Query -is [String[]]) {
+            # массив строк вида name=value
+            # преобразовать этот массив в Hastable @{name=value}
+            foreach ($param in $Query){
+                $Pattern='(?ins)^(?<name>.*)=(?<value>.*)$'
+                if ($param -match $Pattern) {
+                    $res += @{$Matches.name.trim()=$Matches.value.trim()}
+                }
+            }
+        } elseif ($Query -is [System.Collections.IDictionary]) {
+            $res = $Query
+        }
+    }
+    Write-Verbose "$($MyInvocation.InvocationName) LEAVE: ============================================="
+    return $res
+}
+
+function Get-DomainsNew() {
     <#
     .DESCRIPTION
     Получить все ресурсные записи домена. Учитываются limit и offset из строки запроса
@@ -243,7 +270,8 @@ function Get-DomainsAll() {
                             Если передано имя домена, то поиск ведется в полученном списке доменов
     Params.params.query   - аргументы для строки запроса (?arg=1&arg2=qwe&arg3=3...).
                             Может быть строкой, первый '?' не обязателен.
-                            Может быть массивом @('arg=1', 'arg2=qwe', 'arg3=3', ...), будет преобразован в строку запроса
+                            Может быть массивом @('arg=1', 'arg2=qwe', 'arg3=3', ...)
+                            Может быть hashtable @{'arg'=1; 'arg2'='qwe'; 'arg3'=3, ...)
     Params.Params.UseInitialOffset -наличие (значение не обязательно) указывает использовать начальное значение offset из параметра запроса,
                                     иначе offset обнуляется
     #>
@@ -257,53 +285,124 @@ function Get-DomainsAll() {
     )
     Write-Verbose "$($MyInvocation.InvocationName) ENTER: ============================================="
 
-    [Int]$Limit=1000
-    [Int]$Offset=0
     # версия API
     $VerAPI = (GetVersionAPI -Params $Params)
-    # если есть Query, то в нем убрать аргументы limit и
-    # linit, offset по-умолчанию
-    $h_limit=$Limit
-    if ($Params.Params.ContainsKey('Query') -and $Params.Params.Query -and $Params.Params.Query.trim() ) {
-        if ($Params.Params.Query -match '(?ins)(?<fc>\?|&|^)(?<lm>limit=)(?<dg>\d+)(?<lc>&|$)') {
-            # есть limit в запросе, получить значение в переменную
-            $h_limit = [int]$Matches.dg
-        } else {
-            # нет limit среди параметров запроса
-            $Params.Params.Query += "&limit=$($Limit)"
-        }
-        $Pattern='(?ins)(?<fc>\?|&|^)(?<lm>offset=)(?<dg>\d+)(?<lc>&|$)'
-        if ($Params.Params.Query -match $Pattern) {
-            if ( -not $Params.Params.ContainsKey('UseInitialOffset') )  {
-                # есть offset среди параметров запроса, установить значение в 0
-                $Offset=0
-                $Params.params.Query = ($Params.params.Query -replace $Pattern, '${fc}${lm}0${lc}')
-            } else {
-                $Offset=$Matches.dg
-            }
-        } else {
-            # нет offset среди параметров запроса
-            $Params.Params.Query += "&offset=$($Offset)"
-        }
+    # разбор Params.params.query, как параметров запроса
+    # преобразовать строку (p1=v1&p2=v2&...) или массив строк (@('p1=v1', 'p2=v2', ...)) в hastable @{'p1'=v1; 'p2'=v2;...}
+    #
+    if ($null -ne $Params.Params.Query) {
+        $queryNormalize = ($Params.Params.Query | ParseQueryParams)
     } else {
-        # пустой или $null Query
-        $Params.Params.Query = "limit=$($Limit)&offset=$($Offset)"
+        $queryNormalize=@{}
     }
-    # домен в параметрах
-    if ($Params.params.ContainsKey('Domain') -and ($null -ne $Params.params.Domain) -and ([bool]$Params.params.Domain.Trim()) ) {
+    # если в Query нет limit, то проинициализировать значением по-умолчанию
+    if (-not $queryNormalize.ContainsKey('limit')) {
+        $queryNormalize.limit=1000
+    }
+    # offset по-умолчанию
+    if (-not $queryNormalize.ContainsKey('offset')) {
+        $queryNormalize.offset=0
+    } else {
+        if ( -not $Params.Params.ContainsKey('UseInitialOffset') )  {
+            $queryNormalize.offset=0
+        }
+    }
+    $par=@{'query'=$queryNormalize}
+    # домен в параметрах $Params.Params.domain:
+    #   'mrovo.ru' - есть '.', значит передали имя домена и поиск будет осуществляться через Query &filter=<name>
+    #   'sdsad'    - нет '.', значит передали ID домена и поиск будет осуществляться через id_domain в строке v1/{id_domain} (v2/zones/{id_domain})
+    if ($Params.params.ContainsKey('Domain') -and ($null -ne $Params.params.Domain) -and
+            ($Params.params.Domain -is [String]) -and ([bool]$Params.params.Domain.Trim()) )
+    {
         $domain = [String]$Params.params.Domain
     } else {
         $domain = $null
     }
-    Write-Verbose "Начальное значение &limit: $($h_limit)"
-    Write-Verbose "Начальное значение &offset: $($h_limit)"
-    Write-Verbose "Домен для поиска: $($domain)"
+    if ($null -ne $domain) {
+        if ($domain.Contains('.')) {
+            # в domain передали имя домена
+            $par.query.filter=$domain
+        } else {
+            # в domain передали ID домена
+            $par += @{'idDomain'="$($domain)"}
+        }
+    }
+    # удалить лишние параметры
+    $par.Remove('service')
+    Write-Verbose "Параметры для запроса:"
+    Write-Verbose "$($par|ConvertTo-Json -Depth $LogLevel)"
+
+    # сделать копию $Params
+    $Params4Invoke=@{}
+    $Params4Invoke += $Params
+    $Params4Invoke += @{'paramsQuery'=$par}
+    $requestParams = @{
+        "Params" = $Params4Invoke;
+        "Method" = "Get";
+        "logLevel" = $LogLevel;
+    }
+
     # Читать домены частями до конца
     # вернуть часть доменов
     $full_res = @()
-    $Params.AllDomains=$true
+    do {
+        # вызов API
+        $resultAPI = (Invoke-Request @requestParams)
+        # обработка результата
+        $res = @{
+            'raw'  = $resultAPI;
+            'code' = $resultAPI.StatusCode;
+        }
+        if ($res.Code -eq 200) { # OK
+            $res += @{
+                "resDomains" = ($resultAPI.Content | ConvertFrom-Json)
+            }
+        } else {
+            throw $resultAPI.StatusDescription
+        }
+        if ($VerAPI -eq 'v1') {
+            #legacy
+            $full_res += $res.resDomains
+            if ($res.raw.Headers.ContainsKey('x-total-count')) {
+                $h_count = [int]($res.raw.Headers."x-total-count")
+            } else {
+                $h_count = 0
+            }
+            if ($res.raw.Headers.ContainsKey('x-offset')) {
+                $h_offset = [int]($res.raw.Headers.'x-offset')
+            } else {
+                $h_offset = 0
+            }
+            $new_offset=$h_offset + $Params4Invoke.paramsQuery.query.limit
+            $_break_ = $new_offset -lt $h_count
+            $requestParams.Params.paramsQuery.query.offset=$new_offset
+        } elseif ($VerAPI -eq 'v2') {
+            # actual
+            if (HasProperty -Value $res.resDomains -Property 'next_offset') {
+                # содержится информация о offset
+                $full_res += $res.resDomains.result
+                $_break_ = ($res.resDomains.next_offset -ne 0)
+                $requestParams.Params.paramsQuery.query.offset=$res.resDomains.next_offset
+            } else {
+                $full_res = ,$res.resDomains
+                $_break_ = $false
+            }
+        } else {
+            throw "Непподерживаемая версия API: $($VerAPI)"
+        }
+    }
+    while ($_break_)
+    $res.resDomains = $full_res
+    Write-Verbose "content TO object: $($resultAPI.resDomains)"
+    Write-Verbose "$($MyInvocation.InvocationName) LEAVE: ============================================="
+    return $res
+
+
+
+    $full_res = @()
     if ($VerAPI -eq 'v1') {
         do {
+            $resultAPI = (Invoke-Request @requestParams)
             $res_tmp = (Get-Domains -Params $Params -LogLevel $LogLevel)
             if ([bool]$domain) {
                 # был передан domain в Params.params.domain
@@ -343,12 +442,13 @@ function Get-DomainsAll() {
     } elseif  ($VerAPI -eq 'v2') {
         # version API v2
         do {
+            $resultAPI = (Invoke-Request @requestParams)
             $res_tmp = (Get-Domains -Params $Params -LogLevel $LogLevel)
             if ([bool]$domain) {
                 # был передан domain в Params.params.domain
                 # ищем в считанных записях, и если находим, то возвращаем ее и прерываем выполнение
                 $listDom = $res_tmp.resDomains
-                if ($listDom.ContainsKey('count')) {
+                if (HasProperty -Value $listDom -Property 'count') {
                     $listDom = $listDom.result
                 }
                 $r=(DomainInArray -Domain $domain -ListDomains $res_tmp.resDomains.result -LogLevel $LogLevel)
@@ -783,11 +883,11 @@ function Get-State() {
         }
     } elseif ($VerAPI -eq 'v2') {
         #throw "$($MyInvocation.InvocationName) не поддерживается версией $($VerAPI)"
-        # TODO переделать на Get-DomainsAll
+        # TODO переделать на Get-DomainsNew
         $res = (Get-Domains -Params $Params -LogLevel $LogLevel)
         if ($res.Code -eq 200) { # OK
             if ((HasProperty $res.resDomains 'count')) {
-                $res.resDomains = [PSCustomObject]@{"disabled"=$res.resDomains.disabled};
+                $res.resDomains = [PSCustomObject]@{"disabled"=$res.resDomains.result.disabled};
             } else {
                 $res.resDomains = [PSCustomObject]@{"disabled"=$res.resDomains.disabled};
             }
@@ -1522,9 +1622,9 @@ function Invoke-Request() {
         $svcUri = $svcUri.Remove($svcUri.length-1)
     }
     $uri = "$($uri)/$($svcUri)/"
-    # доп. строки к URI
-    if ($Params.ContainsKey("additionalUri") -and $Params.additionalUri -and $Params.additionalUri.Trim()) {
-        $additionalUri = $Params.additionalUri.Trim()
+    # формирование URI без параметров запроса
+    if ($Params.paramsQuery.ContainsKey("idDomain") -and $Params.paramsQuery.idDomain -and $Params.paramsQuery.idDomain.Trim()) {
+        $additionalUri = $Params.paramsQuery.idDomain.Trim()
         while ($additionalUri.StartsWith("/")) {
             $additionalUri = $additionalUri.Remove(0, 1)
         }
@@ -1536,14 +1636,16 @@ function Invoke-Request() {
     if ($Service) {
         $uri = "$($uri)$($Service)/"
     }
-    # параметры к строке запроса (GET например: ?p1=v1&p2=v2&p3=v3)
-    if ($Params.ContainsKey("queryGet") -and ($Method.ToLower() -eq "get") -and $Params.queryGet -and $Params.queryGet.Trim()) {
-        $queryGet = $Params.queryGet.Trim()
-        while ($queryGet.StartsWith("/")) {
+    # формируем параметры к строке запроса (GET например: ?p1=v1&p2=v2&p3=v3)
+    $queryGet=''
+    if ($Params.paramsQuery.ContainsKey("query") -and ($Method.ToLower() -eq "get") -and 
+            $Params.paramsQuery.query -and ($Params.paramsQuery.query.Count -gt 0) )
+    {
+        $Params.paramsQuery.query.GetEnumerator().foreach({
+            $queryGet += "&$($_.name)=$($_.value)"
+        })
+        while ($queryGet.StartsWith("&")) {
             $queryGet = $queryGet.Remove(0, 1)
-        }
-        while ($queryGet.EndsWith("/")) {
-            $queryGet = $queryGet.Remove($queryGet.length-1)
         }
         if (-not $queryGet.StartsWith("?")) {
             $queryGet = "?$($queryGet)"
@@ -1561,14 +1663,13 @@ function Invoke-Request() {
         $AuthHeader = 'X-Token'
     }
     $h = @{
-        #'X-Token' = "$($p.Token)";
         "$AuthHeader" = "$(Get-TokenDNSSelectel -section $p -verAPI $verAPI -LogLevel $LogLevel)";
         'Content-Type' = 'application/json'
     }
     # Дополнительно Headers из параметров
     if ($Params.ContainsKey("Headers") -and ($Params.Headers -is [hashtable])) {
-        $Params.Headers.Keys.foreach({
-            $h += @{"$($_)"=$($Params.Headers."$($_)")}
+        $Params.Headers.GetEnumerator().foreach({
+            $h += @{"$($_.Key)"="$($_.Value)"}
         })
     }
 
@@ -1856,7 +1957,7 @@ function GetIdDomain(){
         # в Params.params.domain было передано имя и надо для него получить ID для actual (v1)
         # для legacy (v1) ID получать не надо, т.к. API одинаково работает и с ID, и с именем
         if ($VerAPI -eq 'v2') {
-            $res = (Get-DomainsAll -Params $params_temp -LogLevel $LogLevel)
+            $res = (Get-DomainsNew -Params $params_temp -LogLevel $LogLevel)
             if ( ($null -ne $res) -and ($res.resDomains.count -eq 1) ) {
                 $res = $res.resDomains[0].id
             }
@@ -1935,13 +2036,12 @@ function HasProperty() {
         $res = $Value.ContainsKey("$($Property)")
     } elseif ($Value -is [PSCustomObject]) {
         # объект имеет тип PSCustomObject или Object
-        $res = [bool]($Value.psobject.properties.match('p1').Count)
+        $res = [bool]($Value.psobject.properties.match("$Property").Count)
     }
     Write-Verbose "Объект содержит свойство $($Property): $($res)"
     Write-Verbose "$($MyInvocation.InvocationName) LEAVE: ============================================="
     return $res
 }
-
 
 #Set-Alias -Value Get-Domains -Name domains
 #Export-ModuleMember -Function Invoke-API -Alias domains
