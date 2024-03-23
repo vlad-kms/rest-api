@@ -34,8 +34,8 @@ $r1=(.\rest-api.ps1 -Provider 'dns_selectel' `
     -LogLevel 1
 );
 $dd=(Get-Date)-$dt
-Write-Host -ForegroundColor DarkGreen "Начали: $($dt)"
-Write-Host -ForegroundColor DarkGreen "Закончили: $(Get-Date)"
-Write-Host -ForegroundColor DarkGreen "Выполнено за: $($dd.Seconds) сек"
-Write-Host -ForegroundColor DarkGreen "Выполнено за: $($dd.Milliseconds) мс"
+Write-Host -ForegroundColor DarkGreen "$("Начали".PadRight(12,'-')): $($dt)"
+Write-Host -ForegroundColor DarkGreen "$("Закончили".PadRight(12,'-')): $(Get-Date)"
+Write-Host -ForegroundColor DarkGreen "$("Выполнено за".PadRight(12,'-')): $($dd.TotalSeconds) сек"
+Write-Host -ForegroundColor DarkGreen "$("Выполнено за".PadRight(12,'-')): $($dd.TotalMilliseconds) мс"
 $r1

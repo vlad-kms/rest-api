@@ -38,6 +38,8 @@
         - [int]retCode      =       : числовой код возврата = HTTP code.
         - [Hashtable]result         : сообщение, поясняющее код возврата
 #>
+
+#Requires -Version 5
 [CmdletBinding()]
 [OutputType([Hashtable])]
 Param (
