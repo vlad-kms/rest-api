@@ -247,35 +247,109 @@ function ParseQueryParams(){
     return $res
 }
 
+<#
+.DESCRIPTION
+Попробовать идентифицировать Value является ID или нет
+Для leagcy (v1) ID - целое число
+Для actual (v2) ID - GUID
+.OUTPUTS
+Name: res
+BaseType: Boolean
+    true   - скорее всего ID
+    false  - скорее всего имя домена
+.PARAMETER Value
+Значение, которое надо идентифицировать
+.PARAMETER VerAPI
+Версия API
+.PARAMETER ErrorAsException
+Если TRUE, то неудавшееся преобразование порождает Exception.
+Иначе возвращает FALSE
+#>
+function IsID(){
+    #Requires -Version 3
+    [OutputType([Hashtable])]
+    [CmdletBinding()]
+    Param(
+        [Parameter(Mandatory=$true, Position=0, ValueFromPipeline=$true)]
+        $Value,
+        [Parameter(Position=1)]
+        [String] $VerAPI='v2',
+        [Parameter(Position=2)]
+        [bool] $ErrorAsException=$true,
+        [Parameter(Position=3)]
+        [bool] $OnlyID4v1=$true,
+        [string] $WhatId='',
+        [Int] $LogLevel=1
+    )
+    Write-Verbose "$($MyInvocation.InvocationName) ENTER: ============================================="
+    if ($VerAPI -eq 'v1') {
+        #v1
+        if ($OnlyID4v1) {
+            # пробуем преобразовать в тип [Int]
+            try {
+                $res = [Int]$Value -is [Int]
+            }
+            catch {
+                $res = $false
+                if ($ErrorAsException) {throw "$($Value) не может являться ID$($WhatId). Тип не [Int]"}
+            }
+        } else {
+            # в любом случае это ID 
+            $res=$true
+        }
+    } elseif ($VerAPI -eq 'v2') {
+        #v2
+        try {
+            # пробуем преобразовать в тип [Guid]
+            $res = [guid]$Value -is [guid]
+        }
+        catch {
+            $res = $false
+            if ($ErrorAsException) {throw "$($Value) не может являться ID$($WhatId). Тип не [Guid]"}
+        }
+    } else {
+        $res = $false
+        if ($ErrorAsException) {throw "Неподерживаемая версия API: $($VerAPI)"}
+    }
+    Write-Verbose "$($Value) может являться ID домена"
+    Write-Verbose "$($MyInvocation.InvocationName) LEAVE: ============================================="
+    return $res
+}
+
+<#
+.DESCRIPTION
+Получить все ресурсные записи домена. Учитываются limit и offset из строки запроса
+v1: GET /; https://api.selectel.ru/domains/v1/
+v2: GET /zones; https://api.selectel.ru/domains/v2/zones
+.OUTPUTS
+Name: res
+BaseType: Hashtable
+    'raw'   - оригинальный ответ от Invoke-WebRequest
+    'code'  - Invoke-WebRequest.StatusCode, т.е. результат возврата HTTP code
+    "resDomains" массив записей о доменах
+.PARAMETER Params
+Params.params - [hashtable], здесь то, что было передано скрипту в -ExtParams
+    Обязательные ключи в HASHTABLE:
+        нет
+    Необязательные ключи в HASHTABLE:
+        Params.Params.domain  - имя или id домена, будет выбираться данные только о нем.
+                                Имя или ID определяется через функцию IsID
+                                ДЛЯ legacy (v1):
+                                Если передан ID, то выбор осуществляется через API https://api.selectel.ru/domains/v1/<id-domain>
+                                Если передано имя домена, то поиск ведется через параметр запрос &filter=<name-domain> https://api.selectel.ru/domains/v1/?filter=<name-domain>.
+                                    Если Params.params.query уже есть &filter=<value>, то значение <name-domain> заменит <value> 
+                                Для actual (v2):
+                                Если передан ID, то выбор осуществляется через API https://api.selectel.ru/domains/v2/zones/<id-domain>
+                                Если передано имя домена, то поиск ведется через параметр запрос &filter=<name-domain> https://api.selectel.ru/domains/v2/zones?filter=<name-domain>.
+                                    Если Params.params.query уже есть &filter=<value>, то значение <name-domain> заменит <value> 
+        Params.params.query   - аргументы для строки запроса (?arg=1&arg2=qwe&arg3=3...).
+                                Может быть строкой, первый '?' не обязателен.
+                                Может быть массивом @('arg=1', 'arg2=qwe', 'arg3=3', ...)
+                                Может быть hashtable @{'arg'=1; 'arg2'='qwe'; 'arg3'=3, ...)
+        Params.Params.UseInitialOffset -наличие (значение не обязательно) указывает использовать начальное значение offset из параметра запроса,
+                                        иначе offset обнуляется
+#>
 function Get-Domains() {
-    <#
-    .DESCRIPTION
-    Получить все ресурсные записи домена. Учитываются limit и offset из строки запроса
-    v1: GET /; https://api.selectel.ru/domains/v1/
-    v2: GET /zones; https://api.selectel.ru/domains/v2/zones
-    .OUTPUTS
-    Name: res
-    BaseType: Hashtable
-        'raw'   - оригинальный ответ от Invoke-WebRequest
-        'code'  - Invoke-WebRequest.StatusCode, т.е. результат возврата HTTP code
-        "resDomains" массив записей о доменах
-    .PARAMETER Params
-    Params.params - [hashtable], здесь то, что было передано скрипту в -ExtParams
-        Обязательные ключи в HASHTABLE:
-    нет
-        Необязательные ключи в HASHTABLE:
-    Params.Params.domain  - имя или id домена, будет выбираться данные только о нем.
-                            ДЛЯ legacy (v1) и actual (v2):
-                            Если передан ID, то выбор осуществляется через API https://api.selectel.ru/domains/v1/<id-domain>
-                            Если передано имя домена, то поиск ведется через параметр запрос &filter=<name-domain>.
-                                Если Params.params.query уже есть &filter=<value>, то это значение заменит <name-domain> <value> 
-    Params.params.query   - аргументы для строки запроса (?arg=1&arg2=qwe&arg3=3...).
-                            Может быть строкой, первый '?' не обязателен.
-                            Может быть массивом @('arg=1', 'arg2=qwe', 'arg3=3', ...)
-                            Может быть hashtable @{'arg'=1; 'arg2'='qwe'; 'arg3'=3, ...)
-    Params.Params.UseInitialOffset -наличие (значение не обязательно) указывает использовать начальное значение offset из параметра запроса,
-                                    иначе offset обнуляется
-    #>
     #Requires -Version 3
     [OutputType([Hashtable])]
     [CmdletBinding()]
@@ -288,6 +362,9 @@ function Get-Domains() {
 
     # версия API
     $VerAPI = (GetVersionAPI -Params $Params)
+    if ( -not ($VerAPI -in @('v1', 'v2')) ) {
+        throw "Неподерживаемая версия API: $($VerAPI)"
+    }
     # разбор Params.params.query, как параметров запроса
     # преобразовать строку (p1=v1&p2=v2&...) или массив строк (@('p1=v1', 'p2=v2', ...)) в hastable @{'p1'=v1; 'p2'=v2;...}
     #
@@ -312,20 +389,15 @@ function Get-Domains() {
     # домен в параметрах $Params.Params.domain:
     #   'mrovo.ru' - есть '.', значит передали имя домена и поиск будет осуществляться через Query &filter=<name>
     #   'sdsad'    - нет '.', значит передали ID домена и поиск будет осуществляться через id_domain в строке v1/{id_domain} (v2/zones/{id_domain})
-    if ($Params.params.ContainsKey('Domain') -and ($null -ne $Params.params.Domain) -and
-            ($Params.params.Domain -is [String]) -and ([bool]$Params.params.Domain.Trim()) )
-    {
-        $domain = [String]$Params.params.Domain
-    } else {
-        $domain = $null
-    }
-    if ($null -ne $domain) {
-        if ($domain.Contains('.')) {
-            # в domain передали имя домена
-            $par.query.filter=$domain
-        } else {
+    $domain = ([String]$Params.params.Domain).Trim()
+    if ($domain) {
+        # проверить, что значение подходит под ID (для v1 [Int]; для v2 [Guid]), или это имя домена
+        if (IsID -Value $domain -VerAPI $VerAPI -ErrorAsException $false){
             # в domain передали ID домена
             $par += @{'idDomain'="$($domain)"}
+        } else {
+            # в domain передали имя домена
+            $par.query.filter=$domain
         }
     }
     # удалить лишние параметры
@@ -377,7 +449,7 @@ function Get-Domains() {
             $new_offset=$h_offset + $Params4Invoke.paramsQuery.query.limit
             $_break_ = $new_offset -lt $h_count
             $requestParams.Params.paramsQuery.query.offset=$new_offset
-        } elseif ($VerAPI -eq 'v2') {
+        } else {
             # actual
             if (HasProperty -Value $res.resDomains -Property 'next_offset') {
                 # содержится информация о offset
@@ -388,8 +460,6 @@ function Get-Domains() {
                 $full_res = ,$res.resDomains
                 $_break_ = $false
             }
-        } else {
-            throw "Непподерживаемая версия API: $($VerAPI)"
         }
     }
     while ($_break_)
@@ -495,102 +565,33 @@ function Get-DomainsOld() {
 <###  v1 and v2 #############################################################################################>
 <###  Получить ресурсные записи домена                                                                    ###>
 <############################################################################################################>
-function Get-RecordsAll() {
-    <#
-    .DESCRIPTION
-    Получить все ресурсные записи домена с учетом параметров запроса &ofsset &limit
-    .OUTPUTS
-    Name: res
-    BaseType: Hashtable
-        'raw'   - ответ от Invoke-WebRequest
-        'code'  - Invoke-WebRequest.StatusCode, т.е. результат возврата HTTP code
-        "resDomains" массив записей rrset домена
-    .PARAMETER Params
-    Params.params - [hashtable], здесь то, что было передано скрипту в -ExtParams
-        Обязательные ключи в HASHTABLE:
-    Params.Params.domain  - имя  или id домена
-        Необязательные ключи в HASHTABLE:
-    $Params.Params.record_id - id записи, будет выбрана только конкретная запись с этим id
-    Params.Params.UseInitialOffset -наличие (значение не обязательно) указывает использовать начальное значение offset из параметра запроса,
-                                    или начинать чтение с 0
-    #>
-    #Requires -Version 3
-    [OutputType([Hashtable])]
-    [CmdletBinding()]
-    Param(
-        [Parameter(Mandatory=$true, Position=0, ValueFromPipeline=$true)]
-        [hashtable] $Params,
-        [Int] $LogLevel=1
-    )
-
-    Write-Verbose "$($MyInvocation.InvocationName) ENTER: ============================================="
-    #Write-Verbose "Переданные параметры: $($Params | ConvertTo-Json -Depth $LogLevel)"
-
-    # limit, offset по-умолчанию
-    [Int]$Limit=1000
-    [Int]$Offset=0
-
-    # дополнительно для строки запроса и ее параметров
-    $VerAPI = (GetVersionAPI -Params $Params)
-
-    # если есть Query, то в нем инициализировать limit и offset
-    # h_limit - или значение из Query &limit, или 1000
-    # h_offset - если есть Params.Params.UseInitialOffset, то значение из Query &offset,
-    #            иначе 0
-    $h_limit=$Limit
-    if ($Params.Params.ContainsKey('Query') -and $Params.Params.Query -and $Params.Params.Query.trim() ) {
-        if ($Params.Params.Query -match '(?ins)(?<fc>\?|&|^)(?<lm>limit=)(?<dg>\d+)(?<lc>&|$)') {
-            # есть limit в запросе, получить значение в переменную
-            $h_limit = [int]$Matches.dg
-        } else {
-            # нет limit среди параметров запроса
-            $Params.Params.Query += "&limit=$($Limit)"
-        }
-        $Pattern='(?ins)(?<fc>\?|&|^)(?<lm>offset=)(?<dg>\d+)(?<lc>&|$)'
-        if ($Params.Params.Query -match $Pattern) {
-            if ( -not $Params.Params.ContainsKey('UseInitialOffset') )  {
-                # есть offset среди параметров запроса, установить значение в 0
-                $Offset=0
-                $Params.params.Query = ($Params.params.Query -replace $Pattern, '${fc}${lm}0${lc}')
-            } else {
-                $Offset=$Matches.dg
-            }
-        } else {
-            # нет offset среди параметров запроса
-            $Params.Params.Query += "&offset=$($Offset)"
-        }
-    } else {
-        # пустой или $null Query
-        $Params.Params.Query = "limit=$($Limit)&offset=$($Offset)"
-    }
-    Write-Verbose "Начальное значение &limit: $($h_limit)"
-    Write-Verbose "Начальное значение &offset: $($h_limit)"
-
-
-    # результат работы
-    Write-Verbose "content TO object: $($resultAPI.resDomains)"
-    Write-Verbose "$($MyInvocation.InvocationName) LEAVE: ============================================="
-    return $res
-}
-
 function Get-Records() {
-    <#
-    .DESCRIPTION
-    Получить ресурсные записи домена
-    .OUTPUTS
-    Name: res
-    BaseType: Hashtable
-        'raw'   - ответ от Invoke-WebRequest
-        'code'  - Invoke-WebRequest.StatusCode, т.е. результат возврата HTTP code
-        "resDomains" (Invoke-WebRequest.Content | ConvertFrom-Json), конвертированный Content в PSCustomObject
-    .PARAMETER Params
-    Params.params - [hashtable], здесь то, что было передано скрипту в -ExtParams
-        Обязательные ключи в HASHTABLE:
-    Params.Params.domain  - имя  или id домена
-        Необязательные ключи в HASHTABLE:
-    $Params.Params.record_id - id записи, будет выбрана только конкретная запись с этим id
-
-    #>
+<#
+.DESCRIPTION
+Получить все ресурсные записи домена с учетом параметров запроса &ofsset &limit
+v1: GET /; https://api.selectel.ru/domains/v1/{id_domain}/records
+v2: GET /zones; https://api.selectel.ru/domains/v2/zones/{id_domain}/rrset
+.OUTPUTS
+Name: res
+BaseType: Hashtable
+    'raw'   - ответ от Invoke-WebRequest
+    'code'  - Invoke-WebRequest.StatusCode, т.е. результат возврата HTTP code
+    "resDomains" массив записей rrset домена
+.PARAMETER Params
+Params.params - [hashtable], здесь то, что было передано скрипту в -ExtParams
+    Обязательные ключи в HASHTABLE:
+        Params.Params.domain  - имя  или id домена
+            ДЛЯ legacy (v1):
+                Если передан ID, то выбор осуществляется через API https://api.selectel.ru/domains/v1/<id-domain>/records
+                Если передано имя домена, то выбор осуществляется через API https://api.selectel.ru/domains/v1/<name-domain>/records
+            Для actual (v2):
+                Если передан ID, то выбор осуществляется через API https://api.selectel.ru/domains/v2/zones/<id-domain>/rrset
+                Если передано имя домена, сначала надо найти ID домена, используя GetIdDomain, затем https://api.selectel.ru/domains/v2/zones/<id-domain>/rrset
+    Необязательные ключи в HASHTABLE:
+        $Params.Params.record_id - id записи, будет выбрана только конкретная запись с этим id
+        Params.Params.UseInitialOffset -наличие (значение не обязательно) указывает использовать начальное значение offset из параметра запроса,
+                                        или начинать чтение с 0
+#>
     #Requires -Version 3
     [OutputType([Hashtable])]
     [CmdletBinding()]
@@ -603,68 +604,121 @@ function Get-Records() {
     Write-Verbose "$($MyInvocation.InvocationName) ENTER: ============================================="
     #Write-Verbose "Переданные параметры: $($Params | ConvertTo-Json -Depth $LogLevel)"
 
-    # дополнительно для строки запроса и ее параметров
+    # версия API
     $VerAPI = (GetVersionAPI -Params $Params)
-    # domain
-    if ($Params.Params.ContainsKey("Domain") -and $Params.Params.Domain -and ([String]$Params.Params.Domain).Trim()) {
-        #$Params += @{'additionalUri' = ([String]$Params.Params.Domain).Trim()}
-        $id_dom = GetIdDomain -Params $Params -LogLevel $LogLevel
-        $Params += @{'additionalUri' = "$($id_dom)"}
-
+    if ( -not ($VerAPI -in @('v1', 'v2')) ) {
+        throw "Неподерживаемая версия API: $($VerAPI)"
+    }
+    # разбор Params.params.query, как параметров запроса
+    # преобразовать строку (p1=v1&p2=v2&...) или массив строк (@('p1=v1', 'p2=v2', ...)) в hastable @{'p1'=v1; 'p2'=v2;...}
+    #
+    if ($null -ne $Params.Params.Query) {
+        $queryNormalize = ($Params.Params.Query | ParseQueryParams)
     } else {
-        $mess = "Запрос не может быть выполнен. Не указан обязательный параметр <Params.params.domain> - домен для которого надо выбрать ресурсные записи."
-        throw $mess
+        $queryNormalize=@{}
+    }
+    # если в Query нет limit, то проинициализировать значением по-умолчанию
+    if (-not $queryNormalize.ContainsKey('limit')) {
+        $queryNormalize.limit=1000
+    }
+    # offset по-умолчанию
+    if (-not $queryNormalize.ContainsKey('offset')) {
+        $queryNormalize.offset=0
+    } else {
+        if ( -not $Params.Params.ContainsKey('UseInitialOffset') )  {
+            $queryNormalize.offset=0
+        }
+    }
+    $par=@{'query'=$queryNormalize}
+    # домен в параметрах $Params.Params.domain ОБЯЗАТЕЛЕН:
+    #   для legacy (v1) можно использовать и имя домена, и  ID
+    #   для actual (v2) можно использовать только ID домена, если передали имя, то сначала получить ID по имени домена (GetIdDomain)
+    $domain = ([String]$Params.params.Domain).Trim()
+    if ($domain) {
+        if (IsID -Value $domain -VerAPI $VerAPI) {
+            # в domain передали ID домена
+            $par += @{'idDomain'="$($domain)"}
+        } else {
+            # в domain передали имя домена
+            # TODO надо сделать поиск ID по имени домена, пока прервать
+            throw "ПОКА ВРЕМЕННО нет поиска ID домена по его имени"
+        }
     }
     # record ID
-    if ($Params.Params.ContainsKey("record_id") -and $Params.Params.record_id -and ([String]$Params.Params.record_id).Trim()) {
-        $record_id = "/$($Params.Params.record_id)"
-    } else {
-        $record_id = ""
-    }
-    # параметры в строку запроса
-    $Params += @{'queryGet' = ""}
-    if ($Params.params.ContainsKey("query")) {
-        $query = $Params.params.query
-        if ($null -ne $query) {
-            if ($query -is [string]) {
-                # тип строка
-                $Params.queryGet += $query
-            } elseif ($query -is [Array]) {
-                # тип массив строк
-                $Params.queryGet += [String]::Join('&', $query)
-            }
+    $record_id=([String]$Params.Params.record_id).Trim()
+    if ($record_id) {
+        if (IsID -Value $record_id -VerAPI $VerAPI) {
+            $par += @{'record_id'=$record_id}
         }
     }
-    # модификация url под версию API
-    if ($VerAPI.ToLower() -eq 'v1') {
-        $svcstr="records"
-    } elseif ($VerAPI.ToLower() -eq 'v2') {
-        $svcstr="rrset"
-    } else {
-        throw "Версия API $($VerAPI) не поддерживается. $($MyInvocation.InvocationName)"
-    }
-    # параметры запроса
+    # service
+    $par += @{'service'=if($VerAPI -eq 'v1'){'records'}else{'rrset'}}
+    Write-Verbose "Начальное значение &limit: $($h_limit)"
+    Write-Verbose "Начальное значение &offset: $($h_limit)"
+    # параметры запроса подготовили
+    Write-Verbose "Параметры для запроса:"
+    Write-Verbose "$($par|ConvertTo-Json -Depth $LogLevel)"
+
+    # сделать копию $Params
+    $Params4Invoke=@{}
+    $Params4Invoke += $Params
+    $Params4Invoke += @{'paramsQuery'=$par}
     $requestParams = @{
-        "Params" = $Params;
+        "Params" = $Params4Invoke;
         "Method" = "Get";
-        "Service" = "$($svcstr)$($record_id)";
         "logLevel" = $LogLevel;
     }
-    # запрос
-    $resultAPI = (Invoke-Request @requestParams)
-    # подготовка резальтата
-    $res = @{
-        'raw'  = $resultAPI;
-        'code' = $resultAPI.StatusCode;
-    }
-    if ($res.Code -eq 200) { # OK
-        $res += @{
-            "resDomains" = ($resultAPI.Content | ConvertFrom-Json)
+
+    # Читать домены частями до конца
+    # вернуть часть доменов
+    $full_res = @()
+    do {
+        $resultAPI = (Invoke-Request @requestParams)
+        # обработка результата
+        $res = @{
+            'raw'  = $resultAPI;
+            'code' = $resultAPI.StatusCode;
         }
-    } else {
-        throw $resultAPI.StatusDescription
-    }
+        if ($res.Code -eq 200) { # OK
+            $res += @{
+                "resDomains" = ($resultAPI.Content | ConvertFrom-Json)
+            }
+        } else {
+            throw $resultAPI.StatusDescription
+        }
+
+        if ($VerAPI -eq 'v1') {
+            #legacy
+            $full_res += $res.resDomains
+            if ($res.raw.Headers.ContainsKey('x-total-count')) {
+                $h_count = [int]($res.raw.Headers."x-total-count")
+            } else {
+                $h_count = 0
+            }
+            if ($res.raw.Headers.ContainsKey('x-offset')) {
+                $h_offset = [int]($res.raw.Headers.'x-offset')
+            } else {
+                $h_offset = 0
+            }
+            $new_offset=$h_offset + $Params4Invoke.paramsQuery.query.limit
+            $_break_ = $new_offset -lt $h_count
+            $requestParams.Params.paramsQuery.query.offset=$new_offset
+        } else {
+            # actual
+            if (HasProperty -Value $res.resDomains -Property 'next_offset') {
+                # содержится информация о offset
+                $full_res += $res.resDomains.result
+                $_break_ = ($res.resDomains.next_offset -ne 0)
+                $requestParams.Params.paramsQuery.query.offset=$res.resDomains.next_offset
+            } else {
+                $full_res = ,$res.resDomains
+                $_break_ = $false
+            }
+        }
+    } while ($_break_)
+
     # результат работы
+    $res.resDomains = $full_res
     Write-Verbose "content TO object: $($resultAPI.resDomains)"
     Write-Verbose "$($MyInvocation.InvocationName) LEAVE: ============================================="
     return $res
@@ -1558,8 +1612,19 @@ function Invoke-Request() {
         }
         $uri = "$($uri)$($additionalUri)/"
     }
+    # Service
+    if (-not $Service) {
+        # не передали параметр -Service
+        # берем из Params.paramsQuery.service
+        $Service = ([string]$Params.paramsQuery.service).Trim()
+    }
     if ($Service) {
         $uri = "$($uri)$($Service)/"
+    }
+    # строка после service (record_id, ...)
+    $record_id = ([string]$Params.paramsQuery.record_id).Trim()
+    if ($record_id) {
+        $uri = "$($uri)$($record_id)/"
     }
     # формируем параметры к строке запроса (GET например: ?p1=v1&p2=v2&p3=v3)
     $queryGet=''
@@ -1569,9 +1634,11 @@ function Invoke-Request() {
         $Params.paramsQuery.query.GetEnumerator().foreach({
             $queryGet += "&$($_.name)=$($_.value)"
         })
+        # убрать начальные '&'
         while ($queryGet.StartsWith("&")) {
             $queryGet = $queryGet.Remove(0, 1)
         }
+        # добавить в начало '?'
         if (-not $queryGet.StartsWith("?")) {
             $queryGet = "?$($queryGet)"
         }
