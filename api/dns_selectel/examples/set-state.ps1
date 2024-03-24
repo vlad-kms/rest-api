@@ -6,8 +6,9 @@ Param(
 )
 
 $vb=$false
+$dt=(get-date)
 
-$global:r=(.\rest-api.ps1 -Provider 'dns_selectel' -FileIni "E:\!my-configs\configs\src\dns-api\config.json" `
+$r1=(.\rest-api.ps1 -Provider 'dns_selectel' -FileIni "E:\!my-configs\configs\src\dns-api\config.json" `
     -ExtParams @{
         "sectionName"="dns_selectel";
         'CFG'=@{
@@ -26,4 +27,9 @@ $global:r=(.\rest-api.ps1 -Provider 'dns_selectel' -FileIni "E:\!my-configs\conf
     -verbose:$vb `
     -LogLevel 1 `
 );
-$r
+$dd=(Get-Date)-$dt
+Write-Host -ForegroundColor DarkGreen "$("Начали".PadRight(12,'-')): $($dt)"
+Write-Host -ForegroundColor DarkGreen "$("Закончили".PadRight(12,'-')): $(Get-Date)"
+Write-Host -ForegroundColor DarkGreen "$("Выполнено за".PadRight(12,'-')): $($dd.TotalSeconds) сек"
+Write-Host -ForegroundColor DarkGreen "$("Выполнено за".PadRight(12,'-')): $($dd.TotalMilliseconds) мс"
+$r1

@@ -466,7 +466,7 @@ function Get-Domains() {
     return $res
 }
 
-function Get-DomainsOld() {
+function __Get-DomainsOld() {
     <#
     .DESCRIPTION
     Получить ресурсные записи домена.
@@ -1009,28 +1009,48 @@ function Set-State() {
 
     Write-Verbose "$($MyInvocation.InvocationName) ENTER: ============================================="
     Write-Verbose "Переданные параметры: $($Params | ConvertTo-Json -Depth $LogLevel)"
-    
-    $VerAPI = (GetVersionAPI -Params $Params)
 
-    # domain
-    if ($Params.Params.ContainsKey("Domain") -and $Params.Params.Domain -and ([String]$Params.Params.Domain).Trim()) {
-        #$Params += @{'additionalUri' = ([String]$Params.Params.Domain).Trim()}
-        $id_dom = GetIdDomain -Params $Params -LogLevel $LogLevel
-        $Params += @{'additionalUri' = "$($id_dom)"}
+    $VerAPI = (GetVersionAPI -Params $Params)
+    $par=@{}
+    # домен в параметрах $Params.Params.domain ОБЯЗАТЕЛЕН:
+    #   для legacy (v1) можно использовать и имя домена, и  ID
+    #   для actual (v2) можно использовать только ID домена, если передали имя, то сначала получить ID по имени домена (GetIdDomain)
+    $domain = ([String]$Params.params.Domain).Trim()
+    if ($domain) {
+        if (IsID -Value $domain -VerAPI $VerAPI -ErrorAsException $false -OnlyID4v1 $false) {
+            # в domain передали ID домена
+            $par += @{'idDomain'="$($domain)"}
+        } else {
+            # в domain передали имя домена
+            $fd = Find-Domain -Params $Params -LogLevel $LogLevel
+            if ($fd.Code -eq 200) {
+                # нет ошибок при поиске
+                if ($fd.resDomains.Count -ne 1) {
+                    throw "Не смогли найти домен $($domain) ::: $($MyInvocation.InvocationName)"
+                }
+                $par += @{'idDomain'="$($fd.resDomains[0].id)"}
+            } else {
+                throw "Ошибка при поиске домена $($domain) ::: $($MyInvocation.InvocationName)"
+            }
+
+        }
     } else {
-        $mess = "Запрос не может быть выполнен. Не указан обязательный параметр <Params.params.domain> - домен, для которого надо отключить обслуживание."
+        $mess = "Запрос не может быть выполнен. Не указан обязательный параметр <Params.params.domain> - домен(зона) для которого(ой) надо отключить обслуживание."
         throw $mess
     }
-    # state value
     $Body = @{"disabled" = [bool]$Params.params.disabled}
+    # параметры запроса
+    # сделать копию $Params
+    $Params4Invoke=@{}
+    $Params4Invoke += $Params
+    $Params4Invoke += @{'paramsQuery'=$par}
     $requestParams = @{
-        "Params" = $Params;
+        "Params" = $Params4Invoke;
         "Method" = "Patch";
         "Service" = "state";
         "Body" = $Body;
         "logLevel" = $LogLevel;
     }
-
     $resultAPI = (Invoke-Request @requestParams)
     $res = @{
         'raw'  = $resultAPI;
@@ -1686,28 +1706,13 @@ function Invoke-Request() {
     # подготовка строки запроса
     $uri = $p.baseUri
     $uri = $uri.trimEnd('/')
-    #while ($uri.EndsWith("/")) {
-    #    $uri = $uri.Remove($uri.length-1)
-    #}
     $svcUri = $p.ServiceUri
     $svcUri = $svcUri.trim('/')
-    #while ($svcUri.StartsWith("/")) {
-    #    $svcUri = $svcUri.Remove(0, 1)
-    #}
-    #while ($svcUri.EndsWith("/")) {
-    #    $svcUri = $svcUri.Remove($svcUri.length-1)
-    #}
     $uri = "$($uri)/$($svcUri)/"
     # формирование URI без параметров запроса
     if ($Params.paramsQuery.ContainsKey("idDomain") -and $Params.paramsQuery.idDomain -and $Params.paramsQuery.idDomain.Trim()) {
         $additionalUri = $Params.paramsQuery.idDomain.Trim()
         $additionalUri = $additionalUri.Trim('/')
-        #while ($additionalUri.StartsWith("/")) {
-        #    $additionalUri = $additionalUri.Remove(0, 1)
-        #}
-        #while ($additionalUri.EndsWith("/")) {
-        #    $additionalUri = $additionalUri.Remove($additionalUri.length-1)
-        #}
         $uri = "$($uri)$($additionalUri)/"
     }
     # Service
@@ -1734,9 +1739,6 @@ function Invoke-Request() {
         })
         # убрать начальные '&'
         $queryGet = $queryGet.TrimStart('&')
-        #while ($queryGet.StartsWith("&")) {
-        #    $queryGet = $queryGet.Remove(0, 1)
-        #}
         # добавить в начало '?'
         if (-not $queryGet.StartsWith("?")) {
             $queryGet = "?$($queryGet)"
@@ -2050,52 +2052,6 @@ function GetIdDomain(){
         # в Params.params.domain был передан ID, его и возвращаем
         $res = $domain
     }
-    <#
-    # определить ID домена, если требуется
-    if ($verAPI.ToLower() -eq 'v2') {
-        # ver API v2
-        if ($domain.Contains('.')) {
-            # в Params.params.domain было передано имя и надо для него получть ID
-            $Params.AllDomains = $true;
-            if ($Params.params.ContainsKey('Service')) {
-                $Params.params.service = '';
-            }
-            $list_domains = Get-DomainsOld -Params $Params -LogLevel $LogLevel
-            $Params.Remove('AllDomains');
-            if ($VerAPI -eq 'v2') {
-                if ( -not $domain.EndsWith('.')) {
-                    $domain += '.'
-                }
-            }
-            $res=''
-            if ($list_domains.code -eq 200) {
-                # получили список доменов без ошибок
-                if ($VerAPI -eq 'v1') {
-                    $ar = $list_domains.resDomains
-                } elseif ($VerAPI -eq 'v2') {
-                    $ar = $list_domains.resDomains.result
-                } else {
-                    throw "Версия API $($VerAPI) не поддерживается. $($MyInvocation.InvocationName)"
-                }
-                foreach ($dom in $ar) {
-                    if ($domain -eq $dom.Name.ToLower()) {
-                        $res = $dom.id
-                        break
-                    }
-                }
-            }
-            if ($res -eq '') {
-                throw ("Не нашли ID для домена $($domain), нет такой зоны в хостинге DNS $($Param.provider)")
-            }
-        } else {
-            # в Params.params.domain был передан ID, его и возвращаем
-            $res = $domain
-        }
-    } else {
-        # ver API отличный от v2
-        $res = $domain
-    }
-    #>
     # результат
     Write-Verbose "Возвращаемое значение (res): $($res)"
     Write-Verbose "$($MyInvocation.InvocationName) LEAVE: ============================================="
