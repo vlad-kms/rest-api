@@ -629,7 +629,7 @@ Params.params - [hashtable], здесь то, что было передано �
     #   для actual (v2) можно использовать только ID домена, если передали имя, то сначала получить ID по имени домена (GetIdDomain)
     $domain = ([String]$Params.params.Domain).Trim()
     if ($domain) {
-        if (IsID -Value $domain -VerAPI $VerAPI) {
+        if (IsID -Value $domain -VerAPI $VerAPI -ErrorAsException $false -OnlyID4v1 $false) {
             # в domain передали ID домена
             $par += @{'idDomain'="$($domain)"}
         } else {
@@ -751,26 +751,32 @@ function Export-ToBind() {
 
     Write-Verbose "$($MyInvocation.InvocationName) ENTER: ============================================="
     Write-Verbose "Переданные параметры: $($Params | ConvertTo-Json -Depth $LogLevel)"
-    
+    # версия API
     $VerAPI = (GetVersionAPI -Params $Params)
     if ($VerAPI -ne 'v1') {
+        # поддерживается только для v1
         throw "$($MyInvocation.InvocationName) не поддерживается версией $($VerAPI)"
     }
-
-    if ($Params.Params.ContainsKey("Domain") -and $Params.Params.Domain -and ([String]$Params.Params.Domain).Trim()) {
-        $Params += @{'additionalUri' = ([String]$Params.Params.Domain).Trim()}
+    # подготовить параметры запроса
+    $par=@{}
+    $domain = ([String]$Params.params.Domain).Trim()
+    if ($domain) {
+        $par += @{'idDomain'="$($domain)"}
     } else {
         $mess = "Запрос не может быть выполнен. Не указан обязательный параметр <Params.params.domain> - домен для которого надо сделать экспорт ресурсных записей."
         throw $mess
     }
-
+    # сделать копию $Params
+    $Params4Invoke=@{}
+    $Params4Invoke += $Params
+    $Params4Invoke += @{'paramsQuery'=$par}
     $requestParams = @{
-        "Params" = $Params;
+        "Params" = $Params4Invoke;
         "Method" = "Get";
         "Service" = "export";
         "logLevel" = $LogLevel;
     }
-
+    # вызов API
     $resultAPI = (Invoke-Request @requestParams)
     $res = @{
         'raw'  = $resultAPI;
