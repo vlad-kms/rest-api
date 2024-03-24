@@ -318,7 +318,7 @@ function IsID(){
 
 <#
 .DESCRIPTION
-Получить все ресурсные записи домена. Учитываются limit и offset из строки запроса
+Получить записи о доменах. Учитываются limit и offset из строки запроса
 v1: GET /; https://api.selectel.ru/domains/v1/
 v2: GET /zones; https://api.selectel.ru/domains/v2/zones
 .OUTPUTS
@@ -554,6 +554,81 @@ function Get-DomainsOld() {
         throw $resultAPI.StatusDescription
     }
     Write-Verbose "content TO object: $($resultAPI.resDomains)"
+    Write-Verbose "$($MyInvocation.InvocationName) LEAVE: ============================================="
+    return $res
+}
+
+function Find-Domain() {
+<#
+Поиск домена по имени.
+.OUTPUTS
+Name: res
+BaseType: Hashtable
+    'raw'   - оригинальный ответ от Invoke-WebRequest
+    'code'  - Invoke-WebRequest.StatusCode, т.е. результат возврата HTTP code
+    "resDomains" массив с одним элементом - записью домена. Пустой массив, если такого домена нет
+.PARAMETER Params
+Params.params - [hashtable], здесь то, что было передано скрипту в -ExtParams
+    Обязательные ключи в HASHTABLE:
+        Params.Params.domain  - имя домена, который надо найти
+    Необязательные ключи в HASHTABLE:
+        нет
+#>
+    #Requires -Version 3
+    [OutputType([String])]
+    [CmdletBinding()]
+    Param(
+        [Parameter(Mandatory=$true, Position=0, ValueFromPipeline=$true)]
+        [hashtable] $Params,
+        [Int] $LogLevel=1
+    )
+
+    Write-Verbose "$($MyInvocation.InvocationName) ENTER: ============================================="
+    Write-Verbose "Домен для поиска: $($Params.Params.domain)"
+
+    $VerAPI = (GetVersionAPI -Params $Params)
+    $paramsCopy = @{}
+    $paramsCopy += $Params
+    $paramsCopy.Params.Query=''
+    $paramsCopy.Params.Remove('UseInitialOffset')
+
+    # domain
+    $domain = ([string]$Params.Params.Domain).Trim(' .').ToLower()
+    if ($domain) {
+        if (IsID -Value $domain -VerAPI $VerAPI -ErrorAsException $false -OnlyID4v1 $true){
+            # это ID 
+            $res = Get-Domains -Params $paramsCopy -LogLevel $LogLevel
+            if ($res.Code -eq 200) { # OK
+                if ($res.resDomains.Count -ne 1){
+                    $res.resDomains = @()
+                }
+            } else {
+                throw $resultAPI.StatusDescription
+            }
+        } else {
+            # передано имя домена
+            # пробуем найти домен с именем $domain
+            $res = Get-Domains -Params $paramsCopy -LogLevel $LogLevel
+            if ($res.Code -eq 200) { # OK
+                $domTemp=@()
+                foreach ($d in $res.resDomains) {
+                    $dn = $d.Name.Trim(' .').ToLower()
+                    if ($dn -eq $domain) {
+                        # нашли домен по имени
+                        $domTemp += $d
+                        break
+                    }
+                }
+                $res.resDomains = $domTemp
+            #} else {
+            #    throw $resultAPI.StatusDescription
+            }
+        }
+        #$Params += @{'additionalUri' = ([String]$Params.Params.Domain).Trim()}
+    } else {
+        $mess = "Запрос не может быть выполнен. Не указан обязательный параметр <Params.params.domain> - домен, который надо найти."
+        throw $mess
+    }
     Write-Verbose "$($MyInvocation.InvocationName) LEAVE: ============================================="
     return $res
 }
@@ -797,7 +872,7 @@ function Export-ToBind() {
 }
 
 <############################################################################################################>
-<###  ONLY v1   #############################################################################################>
+<###  v1 and v2  #############################################################################################>
 <###  Получить статус зоны на NS серверах Selectel: свойство disabled                                     ###>
 <############################################################################################################>
 function Get-State() {
@@ -828,26 +903,48 @@ function Get-State() {
     Write-Verbose "$($MyInvocation.InvocationName) ENTER: ============================================="
     Write-Verbose "Переданные параметры: $($Params | ConvertTo-Json -Depth $LogLevel)"
 
-    # domain
-    if ($Params.Params.ContainsKey("Domain") -and $Params.Params.Domain -and ([String]$Params.Params.Domain).Trim()) {
-        $Params += @{'additionalUri' = ([String]$Params.Params.Domain).Trim()}
-        #$id_dom = GetIdDomain -Params $Params -LogLevel $LogLevel
-        #$Params += @{'additionalUri' = "$($id_dom)"}
+    $VerAPI = (GetVersionAPI -Params $Params)
+    $par=@{}
+    # домен в параметрах $Params.Params.domain ОБЯЗАТЕЛЕН:
+    #   для legacy (v1) можно использовать и имя домена, и  ID
+    #   для actual (v2) можно использовать только ID домена, если передали имя, то сначала получить ID по имени домена (GetIdDomain)
+    $domain = ([String]$Params.params.Domain).Trim()
+    if ($domain) {
+        if (IsID -Value $domain -VerAPI $VerAPI -ErrorAsException $false -OnlyID4v1 $false) {
+            # в domain передали ID домена
+            $par += @{'idDomain'="$($domain)"}
+        } else {
+            # в domain передали имя домена
+            $fd = Find-Domain -Params $Params -LogLevel $LogLevel
+            if ($fd.Code -eq 200) {
+                # нет ошибок при поиске
+                if ($fd.resDomains.Count -ne 1) {
+                    throw "Не смогли найти домен $($domain) ::: $($MyInvocation.InvocationName)"
+                }
+                $par += @{'idDomain'="$($fd.resDomains[0].id)"}
+            } else {
+                throw "Ошибка при поиске домена $($domain) ::: $($MyInvocation.InvocationName)"
+            }
+
+        }
     } else {
         $mess = "Запрос не может быть выполнен. Не указан обязательный параметр <Params.params.domain> - домен(зона) для которого(ой) надо вернуть статус."
         throw $mess
     }
-    $VerAPI = (GetVersionAPI -Params $Params)
+    # параметры запроса
+    # сделать копию $Params
+    $Params4Invoke=@{}
+    $Params4Invoke += $Params
+    $Params4Invoke += @{'paramsQuery'=$par}
     if ($VerAPI -eq 'v1') {
-        # параметры запроса
+        # вызов API
         $requestParams = @{
-            "Params" = $Params;
+            "Params" = $Params4Invoke;
             "Method" = "Get";
             "Service" = "state";
             "logLevel" = $LogLevel;
         }
-        # запрос
-        $resultAPI = (Invoke-Request @requestParams)
+            $resultAPI = (Invoke-Request @requestParams)
         # обработка результата
         $res = @{
             'raw'  = $resultAPI;
@@ -862,13 +959,11 @@ function Get-State() {
         }
     } elseif ($VerAPI -eq 'v2') {
         #throw "$($MyInvocation.InvocationName) не поддерживается версией $($VerAPI)"
-        # TODO переделать на Get-DomainsNew
-        $res = (Get-DomainsOld -Params $Params -LogLevel $LogLevel)
+        # TODO переделать на Find-Domains
+        $res = (Find-Domain -Params $Params -LogLevel $LogLevel)
         if ($res.Code -eq 200) { # OK
-            if ((HasProperty $res.resDomains 'count')) {
-                $res.resDomains = [PSCustomObject]@{"disabled"=$res.resDomains.result.disabled};
-            } else {
-                $res.resDomains = [PSCustomObject]@{"disabled"=$res.resDomains.disabled};
+            if ($res.resDomains.Count -eq 1) {
+                $res.resDomains = [PSCustomObject]@{"disabled"=$res.resDomains[0].disabled};
             }
         } else {
             throw $res.StatusDescription
@@ -1590,26 +1685,29 @@ function Invoke-Request() {
 
     # подготовка строки запроса
     $uri = $p.baseUri
-    while ($uri.EndsWith("/")) {
-        $uri = $uri.Remove($uri.length-1)
-    }
+    $uri = $uri.trimEnd('/')
+    #while ($uri.EndsWith("/")) {
+    #    $uri = $uri.Remove($uri.length-1)
+    #}
     $svcUri = $p.ServiceUri
-    while ($svcUri.StartsWith("/")) {
-        $svcUri = $svcUri.Remove(0, 1)
-    }
-    while ($svcUri.EndsWith("/")) {
-        $svcUri = $svcUri.Remove($svcUri.length-1)
-    }
+    $svcUri = $svcUri.trim('/')
+    #while ($svcUri.StartsWith("/")) {
+    #    $svcUri = $svcUri.Remove(0, 1)
+    #}
+    #while ($svcUri.EndsWith("/")) {
+    #    $svcUri = $svcUri.Remove($svcUri.length-1)
+    #}
     $uri = "$($uri)/$($svcUri)/"
     # формирование URI без параметров запроса
     if ($Params.paramsQuery.ContainsKey("idDomain") -and $Params.paramsQuery.idDomain -and $Params.paramsQuery.idDomain.Trim()) {
         $additionalUri = $Params.paramsQuery.idDomain.Trim()
-        while ($additionalUri.StartsWith("/")) {
-            $additionalUri = $additionalUri.Remove(0, 1)
-        }
-        while ($additionalUri.EndsWith("/")) {
-            $additionalUri = $additionalUri.Remove($additionalUri.length-1)
-        }
+        $additionalUri = $additionalUri.Trim('/')
+        #while ($additionalUri.StartsWith("/")) {
+        #    $additionalUri = $additionalUri.Remove(0, 1)
+        #}
+        #while ($additionalUri.EndsWith("/")) {
+        #    $additionalUri = $additionalUri.Remove($additionalUri.length-1)
+        #}
         $uri = "$($uri)$($additionalUri)/"
     }
     # Service
@@ -1635,9 +1733,10 @@ function Invoke-Request() {
             $queryGet += "&$($_.name)=$($_.value)"
         })
         # убрать начальные '&'
-        while ($queryGet.StartsWith("&")) {
-            $queryGet = $queryGet.Remove(0, 1)
-        }
+        $queryGet = $queryGet.TrimStart('&')
+        #while ($queryGet.StartsWith("&")) {
+        #    $queryGet = $queryGet.Remove(0, 1)
+        #}
         # добавить в начало '?'
         if (-not $queryGet.StartsWith("?")) {
             $queryGet = "?$($queryGet)"

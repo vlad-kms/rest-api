@@ -1,31 +1,38 @@
 ﻿[CmdletBinding()]
 Param(
-    [String]$domain='f68e88b1-aaf6-43d0-9a3d-5bd70aba2f55',
-    [String]$ver='v2'
+    [Parameter(ValueFromPipeline=$true, Position=0)]
+    [String]$domain='',
+    [String]$ver='v2',
+    [switch]$v,
+    [hashtable]$ExP=@{},
+    [string]$act='fd',
+    [int]$useEnv=0
 )
 
-$vb=$false
 $dt=(get-date)
-
 $r1=(.\rest-api.ps1 -Provider 'dns_selectel' `
     -FileIni "E:\!my-configs\configs\src\dns-api\config.json" `
-    -ExtParams @{
+    -ExtParams (@{
                 "sectionName"="dns_selectel"; 
                 'CFG'=@{
                     'dns_selectel'=@{
-                        'version'="$($ver)"}
-                    };
+                        'version'="$($ver)";
+                        "config_v2"=@{
+                            "token_use_env"="$($useEnv)"
+                        }
+                    }
+                };
                 'domain'="$($domain)";
+                "_Service" = "$($domain)";
                 "Body"='test';
-                '_Query'='offset=2&limit=2&show_ips=true';
+                '_Query'='show_ips=true&limit=2';
                 '_record_id'=11264554 `
-    } `
-    -Action 'state' `
+    } + $ExP)`
+    -Action $act `
     -debug `
-    -verbose:$vb `
-    -LogLevel 1`
+    -Verbose:$v `
+    -LogLevel 1
 );
-
 $dd=(Get-Date)-$dt
 Write-Host -ForegroundColor DarkGreen "$("Начали".PadRight(12,'-')): $($dt)"
 Write-Host -ForegroundColor DarkGreen "$("Закончили".PadRight(12,'-')): $(Get-Date)"
