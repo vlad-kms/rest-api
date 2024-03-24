@@ -10,7 +10,7 @@
 
 # Файл модуля сценария или двоичного модуля, связанный с этим манифестом.
     RootModule = 'dns_selectel'
-    ModuleVersion = '1.0.0'
+    ModuleVersion = '1.7.0'
     Author = 'Alexeev Vladimir'
     CompanyName = 'Home'
     Copyright = '(c) 2022-2024 Alexeev Vladimir. Все права защищены.'

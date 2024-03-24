@@ -362,9 +362,6 @@ function Get-Domains() {
 
     # версия API
     $VerAPI = (GetVersionAPI -Params $Params)
-    if ( -not ($VerAPI -in @('v1', 'v2')) ) {
-        throw "Неподерживаемая версия API: $($VerAPI)"
-    }
     # разбор Params.params.query, как параметров запроса
     # преобразовать строку (p1=v1&p2=v2&...) или массив строк (@('p1=v1', 'p2=v2', ...)) в hastable @{'p1'=v1; 'p2'=v2;...}
     #
@@ -606,9 +603,6 @@ Params.params - [hashtable], здесь то, что было передано �
 
     # версия API
     $VerAPI = (GetVersionAPI -Params $Params)
-    if ( -not ($VerAPI -in @('v1', 'v2')) ) {
-        throw "Неподерживаемая версия API: $($VerAPI)"
-    }
     # разбор Params.params.query, как параметров запроса
     # преобразовать строку (p1=v1&p2=v2&...) или массив строк (@('p1=v1', 'p2=v2', ...)) в hastable @{'p1'=v1; 'p2'=v2;...}
     #
@@ -1890,15 +1884,6 @@ function Invoke-AuthSelectel() {
 <############################################################################################################>
 <############################################################################################################>
 <############################################################################################################>
-function GetVersionAPI() {
-    Param(
-        [Parameter(Mandatory=$true, Position=0, ValueFromPipeline=$true)]
-        [hashtable] $Params
-    )
-    return ([string]$Params.sectionData.result.version).Trim().ToLower()
-}
-
-
 function GetIdDomain(){
     <#
     .DESCRIPTION
@@ -2012,6 +1997,25 @@ function GetIdDomain(){
     return $res
 }
 
+
+######################################################################################################
+#                                    PRIVATE FUNCTION 
+#
+######################################################################################################
+function GetVersionAPI() {
+    Param(
+        [Parameter(Mandatory=$true, Position=0, ValueFromPipeline=$true)]
+        [hashtable] $Params
+    )
+    $listSupportedVersions=@('v1', 'v2')
+    $res =([string]$Params.sectionData.result.version).Trim().ToLower()
+    if ($res -in $listSupportedVersions ) {
+        return ([string]$Params.sectionData.result.version).Trim().ToLower()
+    } else {
+        throw "Неподерживаемая версия API: $($res)"
+    }
+}
+
 function HasProperty() {
     #Requires -Version 3
     [OutputType([String])]
@@ -2035,6 +2039,11 @@ function HasProperty() {
     return $res
 }
 
+
+#===========================================================================
+#===========================================================================
+#===========================================================================
+
 if ( ($null -eq (Get-Variable Token_Current -ErrorAction SilentlyContinue)) -or ($Token_Current -isnot [hashtable])) {
     $global:Token_Current=@{
         Username='';
@@ -2044,3 +2053,8 @@ if ( ($null -eq (Get-Variable Token_Current -ErrorAction SilentlyContinue)) -or 
         DateToken=[datetime](Get-Date -Date "1.1.0 0:0:0")
     }
 }
+
+#Set-Alias -Value Get-Domains -Name domains
+Export-ModuleMember -Function @('Invoke-API') #, <#'Get-Domains',#> 'Get-Records')
+#Export-ModuleMember -Function Invoke-API
+#Export-ModuleMember -Function *
