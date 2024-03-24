@@ -36,15 +36,8 @@ $r1=(.\rest-api.ps1 -Provider 'dns_selectel' `
     -LogLevel 1 `
 );
 $dd=(Get-Date)-$dt
-Write-Host -ForegroundColor DarkGreen "Начали: $($dt)"
-Write-Host -ForegroundColor DarkGreen "Закончили: $(Get-Date)"
-Write-Host -Foreground DarkGreen `
-    "$(if ($dd.Days -ne 0){Write-Host -Foreground DarkGreen ""$($dd.Days) дн""}; `
-    if ($dd.Hours -ne 0) {Write-Host -Foreground DarkGreen ""$($dd.Hours) ч""}; `
-    if ($dd.Minutes -ne 0) {Write-Host -Foreground DarkGreen ""$($dd.Minutes) м""}; `
-    if ($dd.Seconds -ne 0) {Write-Host -Foreground DarkGreen ""$($dd.Seconds) сек""}; `
-    if ($dd.Milliseconds -ne 0) {Write-Host -Foreground DarkGreen ""$($dd.Milliseconds) мс""})"
-
-Write-Host -ForegroundColor DarkGreen "Выполнено за: $($dd. Seconds) сек"
-Write-Host -ForegroundColor DarkGreen "Выполнено за: $($dd.Milliseconds) мс"
+Write-Host -ForegroundColor DarkGreen "$("Начали".PadRight(12,'-')): $($dt)"
+Write-Host -ForegroundColor DarkGreen "$("Закончили".PadRight(12,'-')): $(Get-Date)"
+Write-Host -ForegroundColor DarkGreen "$("Выполнено за".PadRight(12,'-')): $($dd.TotalSeconds) сек"
+Write-Host -ForegroundColor DarkGreen "$("Выполнено за".PadRight(12,'-')): $($dd.TotalMilliseconds) мс"
 $r1
