@@ -535,7 +535,7 @@ Params.params - [hashtable], здесь то, что было передано �
             }
             if ($res.Code -eq 200) { # OK
                 $res += @{
-                    "resDomains" = ($resultAPI.Content | ConvertFrom-Json)
+                    "resDomains" = ,($resultAPI.Content | ConvertFrom-Json)
                 }
             } else {
                 throw $resultAPI.StatusDescription
