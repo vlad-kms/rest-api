@@ -62,7 +62,7 @@ Param (
 
 $deliveryToProd = $True
 
-Write-Verbose "$($MyInvocation.InvocationName) ENTER: ==================================================================="
+Write-Verbose "$(Get-Date):::$($MyInvocation.InvocationName) ENTER: ==================================================================="
 
 Write-Verbose "Provider: $($Provider)"
 Write-Verbose "FileIni: $($FileIni)"

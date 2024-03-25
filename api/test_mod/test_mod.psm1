@@ -22,7 +22,7 @@
         [int] $LogLevel=1
     )
     begin {
-        $s = "$($MyInvocation.InvocationName) ENTER: =============================================++++++++++++++++++++++++++++"
+        $s = "$(Get-Date):::$($MyInvocation.InvocationName) ENTER: =============================================++++++++++++++++++++++++++++"
         Write-Verbose "$($s)"
         Write-Verbose "$($Params|ConvertTo-Json -Depth $LogLevel)"
         $result = [ordered]@{
@@ -89,7 +89,7 @@
         }
     }
     end {
-        Write-Verbose "$($MyInvocation.InvocationName) LEAVE: ============================================="
+        Write-Verbose "$(Get-Date):::$($MyInvocation.InvocationName) LEAVE: ============================================="
         return $result
     }
 }
@@ -103,7 +103,7 @@ function Get-SupportedFeatures() {
     [CmdletBinding()]
     Param()
 
-    Write-Verbose "$($MyInvocation.InvocationName) ENTER: ============================================="
+    Write-Verbose "$(Get-Date):::$($MyInvocation.InvocationName) ENTER: ============================================="
 
     $result = @{
         "test"="Get-Test";
@@ -119,7 +119,7 @@ function Get-SupportedFeatures() {
         }
     }
     #1/0
-    Write-Verbose "$($MyInvocation.InvocationName) LEAVE: ============================================="
+    Write-Verbose "$(Get-Date):::$($MyInvocation.InvocationName) LEAVE: ============================================="
     return $result
 }
 
@@ -132,7 +132,7 @@ function Get-Test() {
         [Int] $LogLevel=1
     )
 
-    Write-Verbose "$($MyInvocation.InvocationName) ENTER: ============================================="
+    Write-Verbose "$(Get-Date):::$($MyInvocation.InvocationName) ENTER: ============================================="
     Write-Verbose "Переданные параметры: $($Params | ConvertTo-Json -Depth $LogLevel)"
 
     $resultAPI = [ordered]@{
@@ -146,7 +146,7 @@ function Get-Test() {
     Write-Verbose "$((($s).PadRight($s.Length+1, ' ')).PadRight(80, [char]94))"
     $resultAPI.code = 1001;
 
-    Write-Verbose "$($MyInvocation.InvocationName) LEAVE: ============================================="
+    Write-Verbose "$(Get-Date):::$($MyInvocation.InvocationName) LEAVE: ============================================="
     return $resultAPI
 }
 
