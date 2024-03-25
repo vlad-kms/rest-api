@@ -1141,19 +1141,14 @@ function Add-Record() {
         $mess = "Запрос не может быть выполнен. Не указан обязательный параметр <Params.params.domain> - домен для которого надо добавить ресурсную запись."
         throw $mess
     }
-
-
-    # TODO 
-    exit
-
-    # domain
-    if ($Params.Params.ContainsKey("Domain") -and $Params.Params.Domain -and ([String]$Params.Params.Domain).Trim()) {
-        #$Params += @{'additionalUri' = ([String]$Params.Params.Domain).Trim()}
-        $id_dom = GetIdDomain -Params $Params -LogLevel $LogLevel
-        $Params += @{'additionalUri' = "$($id_dom)"}
+    $Params += @{'paramsQuery'=$par}
+    # Service
+    if ($VerAPI.ToLower() -eq 'v1' ) {
+        $svcstr="records"
+    } elseif ($VerAPI.ToLower() -eq 'v2') {
+        $svcstr="rrset"
     } else {
-        $mess = "Запрос не может быть выполнен. Не указан обязательный параметр <Params.params.domain> - домен для которого надо добавить ресурсную запись."
-        throw $mess
+        throw "Версия API $($VerAPI) не поддерживается. $($MyInvocation.InvocationName)"
     }
     # готовим Body для ресурсной записи
     $record = @{};
@@ -1166,14 +1161,6 @@ function Add-Record() {
     }
     if ($messError) {
         throw $messError
-    }
-    # Service
-    if ($VerAPI.ToLower() -eq 'v1' ) {
-        $svcstr="records"
-    } elseif ($VerAPI.ToLower() -eq 'v2') {
-        $svcstr="rrset"
-    } else {
-        throw "Версия API $($VerAPI) не поддерживается. $($MyInvocation.InvocationName)"
     }
     #
     $requestParams = @{
@@ -1632,38 +1619,21 @@ function Invoke-Request() {
     BaseType: [Microsoft.PowerShell.Commands.HtmlWebResponseObject]
     .PARAMETER Params
         - Params.sectionData [HASHTABLE]    - секция из файла cfg с настройками провайдера: части URI, пароли ...
-        - Params.paramsQuery [HASHTABLE]    - параметры для запроса
-            - .query [HASHTABLE]            - параметры в для строке запроса (limit, offset, filter и т.д.)
-            - .idDomain                     - ID домена
-            - .service                      - часть URI (records, rrset, state...), используется если не передали параметр -Service
-            - .record_id                    - ID записи RRSET, использется при формрровании строки запроса после service
-            - .headers[Hashtable]           - HEADERS  к HTTP запросу
-
-        - Params.params - [hashtable], здесь то, что было передано скрипту в -ExtParams
-            Ключи в Params.params:
-            - sectionData   [Hashtable]
-
-            Params.Params.domain    - имя  или id домена
-            Params.Params.record_id - id ресурсной записи, которую надо обновить
-        Необязательные ключи в HASHTABLE:
-        - Params.sectionData [HASHTABLE]
             параметры для формирования структур для API и вызов API.
             Получили ее из INI-файла с помощью [FileCFG]::getSectionValues
             - sectionData.BaseUri: "https://api.selectel.ru"    , ОБЯЗАТЕЛЬНЫЙ
             - sectionData.ServiceUri: "/domains/v1/"            , ОБЯЗАТЕЛЬНЫЙ
                 Используются для формирования строки запроса:
                 Params.sectionData.BaseUri+Params.sectionData.ServiceUri+Params.additionalUri+Service+params.queryGet
-            - params.additionalUri  [String]                    , НЕОБЯЗАТЕЛЬНЫЙ
-                Используются для формирования строки запроса:
-                Params.sectionData.BaseUri+Params.sectionData.ServiceUri+Params.additionalUri+Service+params.queryGet
-            - params.queryGet       [String]                    , НЕОБЯЗАТЕЛЬНЫЙ
-                Параметры для строки запроса (?arg=1&arg2=qwe&arg3=3...).
-                Может быть строкой, первый '?' не обязателен.
-                Может быть массивом @('arg=1', 'arg2=qwe', 'arg3=3', ...), будет преобразован в строку запроса
-                Используются для формирования строки запроса:
-                Params.sectionData.BaseUri+Params.sectionData.ServiceUri+Params.additionalUri+Service+params.queryGet
-            - params.Headers       [HASHTABLE]                    , НЕОБЯЗАТЕЛЬНЫЙ
-                Содержит заголовки для запроса
+        - Params.paramsQuery [HASHTABLE]    - параметры для запроса
+            - .query [HASHTABLE]            - параметры в для строке запроса (limit, offset, filter и т.д.)
+            - .idDomain                     - ID домена
+            - .service                      - часть URI (records, rrset, state...), используется если не передали параметр -Service
+            - .record_id                    - ID записи RRSET, использется при формрровании строки запроса после service
+            - .headers[Hashtable]           - HEADERS  к HTTP запросу
+            - sectionData   [Hashtable]
+        Необязательные ключи в HASHTABLE:
+        - Params.params - [hashtable], здесь то, что было передано скрипту в -ExtParams
     .PARAMETER Method
     Метод HTTP для вызова API
     .PARAMETER Service
@@ -1902,7 +1872,7 @@ function Get-TokenDNSSelectel() {
                     [System.Environment]::SetEnvironmentVariable("TokenSelectel", $null, [System.EnvironmentVariableTarget]::User)
                 }
             }
-            # TODO пока не готово
+            # TODO пока не готово. Может и не надо. Думать надо... (с)
         }
         if ($null -eq $res) {
             $p=@{}
