@@ -644,25 +644,12 @@ Params.params - [hashtable], здесь то, что было передано �
     # домен в параметрах $Params.Params.domain ОБЯЗАТЕЛЕН:
     #   для legacy (v1) можно использовать и имя домена, и  ID
     #   для actual (v2) можно использовать только ID домена, если передали имя, то сначала получить ID по имени домена (GetIdDomain)
-    $domain = ([String]$Params.params.Domain).Trim()
+    $domain=GetIdDomain -Params $Params -ErrorAsException $false -OnlyID4v1 $false
     if ($domain) {
-        if (IsID -Value $domain -VerAPI $VerAPI -ErrorAsException $false -OnlyID4v1 $false) {
-            # в domain передали ID домена
-            $par += @{'idDomain'="$($domain)"}
-        } else {
-            # в domain передали имя домена
-            $fd = Find-Domain -Params $Params -LogLevel $LogLevel
-            if ($fd.Code -eq 200) {
-                # нет ошибок при поиске
-                if ($fd.resDomains.Count -ne 1) {
-                    throw "Не смогли найти домен $($domain) ::: $($MyInvocation.InvocationName)"
-                }
-                $par += @{'idDomain'="$($fd.resDomains[0].id)"}
-            } else {
-                throw "Ошибка при поиске домена $($domain) ::: $($MyInvocation.InvocationName)"
-            }
-
-        }
+        $par += @{'idDomain'="$($domain)"}
+    } else {
+        $mess = "Запрос не может быть выполнен. Не указан обязательный параметр <Params.params.domain> - домен для которого надо получить список ресурсных записей."
+        throw $mess
     }
     # record ID
     $record_id=([String]$Params.Params.record_id).Trim()
@@ -865,25 +852,9 @@ function Get-State() {
     # домен в параметрах $Params.Params.domain ОБЯЗАТЕЛЕН:
     #   для legacy (v1) можно использовать и имя домена, и  ID
     #   для actual (v2) можно использовать только ID домена, если передали имя, то сначала получить ID по имени домена (GetIdDomain)
-    $domain = ([String]$Params.params.Domain).Trim()
+    $domain=(GetIdDomain -Params $Params -ErrorAsException $false -OnlyID4v1 $false)
     if ($domain) {
-        if (IsID -Value $domain -VerAPI $VerAPI -ErrorAsException $false -OnlyID4v1 $false) {
-            # в domain передали ID домена
-            $par += @{'idDomain'="$($domain)"}
-        } else {
-            # в domain передали имя домена
-            $fd = Find-Domain -Params $Params -LogLevel $LogLevel
-            if ($fd.Code -eq 200) {
-                # нет ошибок при поиске
-                if ($fd.resDomains.Count -ne 1) {
-                    throw "Не смогли найти домен $($domain) ::: $($MyInvocation.InvocationName)"
-                }
-                $par += @{'idDomain'="$($fd.resDomains[0].id)"}
-            } else {
-                throw "Ошибка при поиске домена $($domain) ::: $($MyInvocation.InvocationName)"
-            }
-
-        }
+        $par += @{'idDomain'="$($domain)"}
     } else {
         $mess = "Запрос не может быть выполнен. Не указан обязательный параметр <Params.params.domain> - домен(зона) для которого(ой) надо вернуть статус."
         throw $mess
@@ -971,27 +942,12 @@ function Set-State() {
     # домен в параметрах $Params.Params.domain ОБЯЗАТЕЛЕН:
     #   для legacy (v1) можно использовать и имя домена, и  ID
     #   для actual (v2) можно использовать только ID домена, если передали имя, то сначала получить ID по имени домена (GetIdDomain)
-    $domain = ([String]$Params.params.Domain).Trim()
+    $par=@{}
+    $domain=(GetIdDomain -Params $Params -ErrorAsException $false -OnlyID4v1 $false)
     if ($domain) {
-        if (IsID -Value $domain -VerAPI $VerAPI -ErrorAsException $false -OnlyID4v1 $false) {
-            # в domain передали ID домена
-            $par += @{'idDomain'="$($domain)"}
-        } else {
-            # в domain передали имя домена
-            $fd = Find-Domain -Params $Params -LogLevel $LogLevel
-            if ($fd.Code -eq 200) {
-                # нет ошибок при поиске
-                if ($fd.resDomains.Count -ne 1) {
-                    throw "Не смогли найти домен $($domain) ::: $($MyInvocation.InvocationName)"
-                }
-                $par += @{'idDomain'="$($fd.resDomains[0].id)"}
-            } else {
-                throw "Ошибка при поиске домена $($domain) ::: $($MyInvocation.InvocationName)"
-            }
-
-        }
+        $par += @{'idDomain'="$($domain)"}
     } else {
-        $mess = "Запрос не может быть выполнен. Не указан обязательный параметр <Params.params.domain> - домен(зона) для которого(ой) надо отключить обслуживание."
+        $mess = "Запрос не может быть выполнен. Не указан обязательный параметр <Params.params.domain> - домен для которого надо добавить ресурсную запись."
         throw $mess
     }
     $Body = @{"disabled" = [bool]$Params.params.disabled}
@@ -1118,24 +1074,10 @@ function Add-Record() {
     # домен в параметрах $Params.Params.domain ОБЯЗАТЕЛЕН:
     #   для legacy (v1) можно использовать и имя домена, и  ID
     #   для actual (v2) можно использовать только ID домена, если передали имя, то сначала получить ID по имени домена (GetIdDomain)
-    $domain = ([String]$Params.params.Domain).Trim()
+    $par=@{}
+    $domain=(GetIdDomain -Params $Params -ErrorAsException $false -OnlyID4v1 $false)
     if ($domain) {
-        if (IsID -Value $domain -VerAPI $VerAPI -ErrorAsException $false -OnlyID4v1 $false) {
-            # в domain передали ID домена
-            $par += @{'idDomain'="$($domain)"}
-        } else {
-            # в domain передали имя домена
-            $fd = Find-Domain -Params $Params -LogLevel $LogLevel
-            if ($fd.Code -eq 200) {
-                # нет ошибок при поиске
-                if ($fd.resDomains.Count -ne 1) {
-                    throw "Не смогли найти домен $($domain) ::: $($MyInvocation.InvocationName)"
-                }
-                $par += @{'idDomain'="$($fd.resDomains[0].id)"}
-            } else {
-                throw "Ошибка при поиске домена $($domain) ::: $($MyInvocation.InvocationName)"
-            }
-        }
+        $par += @{'idDomain'="$($domain)"}
     } else {
         $mess = "Запрос не может быть выполнен. Не указан обязательный параметр <Params.params.domain> - домен для которого надо добавить ресурсную запись."
         throw $mess
@@ -1227,26 +1169,12 @@ function Remove-Record() {
     # домен в параметрах $Params.Params.domain ОБЯЗАТЕЛЕН:
     #   для legacy (v1) можно использовать и имя домена, и  ID
     #   для actual (v2) можно использовать только ID домена, если передали имя, то сначала получить ID по имени домена (GetIdDomain)
-    $domain = ([String]$Params.params.Domain).Trim()
+    $par=@{}
+    $domain=(GetIdDomain -Params $Params -ErrorAsException $false -OnlyID4v1 $false)
     if ($domain) {
-        if (IsID -Value $domain -VerAPI $VerAPI -ErrorAsException $false -OnlyID4v1 $false) {
-            # в domain передали ID домена
-            $par += @{'idDomain'="$($domain)"}
-        } else {
-            # в domain передали имя домена
-            $fd = Find-Domain -Params $Params -LogLevel $LogLevel
-            if ($fd.Code -eq 200) {
-                # нет ошибок при поиске
-                if ($fd.resDomains.Count -ne 1) {
-                    throw "Не смогли найти домен $($domain) ::: $($MyInvocation.InvocationName)"
-                }
-                $par += @{'idDomain'="$($fd.resDomains[0].id)"}
-            } else {
-                throw "Ошибка при поиске домена $($domain) ::: $($MyInvocation.InvocationName)"
-            }
-        }
+        $par += @{'idDomain'="$($domain)"}
     } else {
-        $mess = "Запрос не может быть выполнен. Не указан обязательный параметр <Params.params.domain> - домен для которого надо добавить ресурсную запись."
+        $mess = "Запрос не может быть выполнен. Не указан обязательный параметр <Params.params.domain> - домен для которого надо удалить ресурсную запись."
         throw $mess
     }
     # record ID
@@ -1335,24 +1263,10 @@ function Set-Record() {
     # домен в параметрах $Params.Params.domain ОБЯЗАТЕЛЕН:
     #   для legacy (v1) можно использовать и имя домена, и  ID
     #   для actual (v2) можно использовать только ID домена, если передали имя, то сначала получить ID по имени домена (GetIdDomain)
-    $domain = ([String]$Params.params.Domain).Trim()
+    $par=@{}
+    $domain=GetIdDomain -Params $Params -ErrorAsException $false -OnlyID4v1 $false
     if ($domain) {
-        if (IsID -Value $domain -VerAPI $VerAPI -ErrorAsException $false -OnlyID4v1 $false) {
-            # в domain передали ID домена
-            $par += @{'idDomain'="$($domain)"}
-        } else {
-            # в domain передали имя домена
-            $fd = Find-Domain -Params $Params -LogLevel $LogLevel
-            if ($fd.Code -eq 200) {
-                # нет ошибок при поиске
-                if ($fd.resDomains.Count -ne 1) {
-                    throw "Не смогли найти домен $($domain) ::: $($MyInvocation.InvocationName)"
-                }
-                $par += @{'idDomain'="$($fd.resDomains[0].id)"}
-            } else {
-                throw "Ошибка при поиске домена $($domain) ::: $($MyInvocation.InvocationName)"
-            }
-        }
+        $par += @{'idDomain'="$($domain)"}
     } else {
         $mess = "Запрос не может быть выполнен. Не указан обязательный параметр <Params.params.domain> - домен для которого надо добавить ресурсную запись."
         throw $mess
@@ -1468,24 +1382,9 @@ function Set-Domain() {
         #   для legacy (v1) можно использовать и имя домена, и  ID
         #   для actual (v2) можно использовать только ID домена, если передали имя, то сначала получить ID по имени домена (GetIdDomain)
         $par=@{}
-        $domain = ([String]$Params.params.Domain).Trim()
+        $domain=GetIdDomain -Params $Params -ErrorAsException $false -OnlyID4v1 $false
         if ($domain) {
-            if (IsID -Value $domain -VerAPI $VerAPI -ErrorAsException $false -OnlyID4v1 $false) {
-                # в domain передали ID домена
-                $par += @{'idDomain'="$($domain)"}
-            } else {
-                # в domain передали имя домена
-                $fd = Find-Domain -Params $Params -LogLevel $LogLevel
-                if ($fd.Code -eq 200) {
-                    # нет ошибок при поиске
-                    if ($fd.resDomains.Count -ne 1) {
-                        throw "Не смогли найти домен $($domain) ::: $($MyInvocation.InvocationName)"
-                    }
-                    $par += @{'idDomain'="$($fd.resDomains[0].id)"}
-                } else {
-                    throw "Ошибка при поиске домена $($domain) ::: $($MyInvocation.InvocationName)"
-                }
-            }
+            $par += @{'idDomain'="$($domain)"}
         } else {
             $mess = "Запрос не может быть выполнен. Не указан обязательный параметр <Params.params.domain> - домен для которого надо обновить данные."
             throw $mess
@@ -1689,6 +1588,11 @@ function Remove-Domain() {
     return $res
 }
 
+######################################################################################################
+######################################################################################################
+###                                    PRIVATE FUNCTION 
+######################################################################################################
+######################################################################################################
 function Invoke-Request() {
     <#
     .DESCRIPTION
@@ -1867,7 +1771,6 @@ function Invoke-Request() {
     return $res
 }
 
-############# Private functions
 function Get-TokenDNSSelectel() {
     <#
     .DESCRIPTION
@@ -2034,9 +1937,6 @@ function Invoke-AuthSelectel() {
     return $res
 }
 
-<############################################################################################################>
-<############################################################################################################>
-<############################################################################################################>
 function GetIdDomain(){
     <#
     .DESCRIPTION
@@ -2094,11 +1994,6 @@ function GetIdDomain(){
     return $res
 }
 
-
-######################################################################################################
-#                                    PRIVATE FUNCTION 
-#
-######################################################################################################
 function GetVersionAPI() {
     Param(
         [Parameter(Mandatory=$true, Position=0, ValueFromPipeline=$true)]
@@ -2152,6 +2047,6 @@ if ( ($null -eq (Get-Variable Token_Current -ErrorAction SilentlyContinue)) -or 
 }
 
 #Set-Alias -Value Get-Domains -Name domains
-#Export-ModuleMember -Function @('Invoke-API') #, <#'Get-Domains',#> 'Get-Records')
+Export-ModuleMember -Function @('Invoke-API') #, <#'Get-Domains',#> 'Get-Records')
 #Export-ModuleMember -Function Invoke-API
 #Export-ModuleMember -Function *
