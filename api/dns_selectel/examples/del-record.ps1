@@ -1,14 +1,15 @@
 ﻿
 [CmdletBinding()]
 Param(
-    [Parameter(ValueFromPipeline=$true, Position=0)]
-    [String]$domain='ce26d823-51a7-420d-8158-08450ca3c6ab',
+    [Parameter(Mandatory=$true, ValueFromPipeline=$true, Position=0)]
+    [String]$domain='',
     [Parameter(Mandatory=$true, Position=1)]
     [String]$record,
     [String]$ver='v2'
 )
 
 $vb=$false
+$dt=(get-date)
 
 $r=(.\rest-api.ps1 -Provider 'dns_selectel' `
     -FileIni "E:\!my-configs\configs\src\dns-api\config.json" `
@@ -34,5 +35,9 @@ $r=(.\rest-api.ps1 -Provider 'dns_selectel' `
 );
 #Write-Output 'GLOBAL VAR $r1'
 $r
-
-exit
+$dd=(Get-Date)-$dt
+Write-Host -ForegroundColor DarkGreen "$("Начали".PadRight(12,'-')): $($dt)"
+Write-Host -ForegroundColor DarkGreen "$("Закончили".PadRight(12,'-')): $(Get-Date)"
+Write-Host -ForegroundColor DarkGreen "$("Выполнено за".PadRight(12,'-')): $($dd.TotalSeconds) сек"
+Write-Host -ForegroundColor DarkGreen "$("Выполнено за".PadRight(12,'-')): $($dd.TotalMilliseconds) мс"
+$r1

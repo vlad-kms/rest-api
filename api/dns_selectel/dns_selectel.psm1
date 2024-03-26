@@ -1135,7 +1135,6 @@ function Add-Record() {
             } else {
                 throw "Ошибка при поиске домена $($domain) ::: $($MyInvocation.InvocationName)"
             }
-
         }
     } else {
         $mess = "Запрос не может быть выполнен. Не указан обязательный параметр <Params.params.domain> - домен для которого надо добавить ресурсную запись."
@@ -1225,23 +1224,43 @@ function Remove-Record() {
 
     $VerAPI = (GetVersionAPI -Params $Params)
 
-    # domain
-    if ($Params.Params.ContainsKey("Domain") -and $Params.Params.Domain -and ([String]$Params.Params.Domain).Trim()) {
-        #$Params += @{'additionalUri' = ([String]$Params.Params.Domain).Trim()}
-        $id_dom = GetIdDomain -Params $Params -LogLevel $LogLevel
-        $Params += @{'additionalUri' = "$($id_dom)"}
+    # домен в параметрах $Params.Params.domain ОБЯЗАТЕЛЕН:
+    #   для legacy (v1) можно использовать и имя домена, и  ID
+    #   для actual (v2) можно использовать только ID домена, если передали имя, то сначала получить ID по имени домена (GetIdDomain)
+    $domain = ([String]$Params.params.Domain).Trim()
+    if ($domain) {
+        if (IsID -Value $domain -VerAPI $VerAPI -ErrorAsException $false -OnlyID4v1 $false) {
+            # в domain передали ID домена
+            $par += @{'idDomain'="$($domain)"}
+        } else {
+            # в domain передали имя домена
+            $fd = Find-Domain -Params $Params -LogLevel $LogLevel
+            if ($fd.Code -eq 200) {
+                # нет ошибок при поиске
+                if ($fd.resDomains.Count -ne 1) {
+                    throw "Не смогли найти домен $($domain) ::: $($MyInvocation.InvocationName)"
+                }
+                $par += @{'idDomain'="$($fd.resDomains[0].id)"}
+            } else {
+                throw "Ошибка при поиске домена $($domain) ::: $($MyInvocation.InvocationName)"
+            }
+        }
     } else {
         $mess = "Запрос не может быть выполнен. Не указан обязательный параметр <Params.params.domain> - домен для которого надо добавить ресурсную запись."
         throw $mess
     }
-    # record_id
-    if ($Params.Params.ContainsKey("record_id") -and $Params.Params.record_id -and ([String]$Params.Params.record_id).Trim()) {
-        $record_id = "/$($Params.Params.record_id)"
+    # record ID
+    $record_id=([String]$Params.Params.record_id).Trim()
+    if ($record_id) {
+        if (IsID -Value $record_id -VerAPI $VerAPI) {
+            $par += @{'record_id'=$record_id}
+        }
     } else {
         $messError = "Запрос не может быть выполнен. Не указан обязательный параметр <Params.params.record_id> - id ресурсной записи для удаления."
         throw $messError
     }
     # Service
+    $svcstr=''
     if ($VerAPI.ToLower() -eq 'v1' ) {
         $svcstr="records"
     } elseif ($VerAPI.ToLower() -eq 'v2') {
@@ -1249,11 +1268,14 @@ function Remove-Record() {
     } else {
         throw "Версия API $($VerAPI) не поддерживается. $($MyInvocation.InvocationName)"
     }
+    $par += @{'service'=$svcstr}
+    $Params += @{'paramsQuery'=$par}
+
     #
     $requestParams = @{
         "Params" = $Params;
         "Method" = "DELete";
-        "Service" = "$($svcstr)$($record_id)";
+        #"Service" = "$($svcstr)$($record_id)";
         "logLevel" = $LogLevel;
     }
 
