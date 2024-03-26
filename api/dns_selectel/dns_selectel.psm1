@@ -1649,15 +1649,18 @@ function Remove-Domain() {
     # версия API
     $VerAPI = (GetVersionAPI -Params $Params)
     if ($VerAPI.ToLower() -eq 'v2' ) {
-        # domain
-        if ($Params.Params.ContainsKey("Domain") -and $Params.Params.Domain -and ([String]$Params.Params.Domain).Trim() -and [String]$Params.Params.Domain.Contains('.') ) {
-            $d_id = GetIdDomain -Params $Params -LogLevel $LogLevel
-            $Params += @{'additionalUri' = "$($d_id)"}
+        # домен в параметрах $Params.Params.domain ОБЯЗАТЕЛЕН:
+        #   для actual (v2) можно использовать только ID домена, если передали имя, то сначала получить ID по имени домена (GetIdDomain)
+        $par=@{}
+        $domain=GetIdDomain -Params $Params -ErrorAsException $false -OnlyID4v1 $false
+        if ($domain) {
+            $par += @{'idDomain'="$($domain)"}
         } else {
             $mess = "Запрос не может быть выполнен. Не указан обязательный параметр <Params.params.domain> - домен который надо удалить."
             throw $mess
         }
-        # Service
+        $Params += @{'paramsQuery'=$par}
+        #Method
         $Method='Delete'
         $requestParams = @{
             "Params" = $Params;
@@ -2054,46 +2057,36 @@ function GetIdDomain(){
     Param(
         [Parameter(Mandatory=$true, Position=0, ValueFromPipeline=$true)]
         [hashtable] $Params,
-        [Int] $LogLevel=1
+        [Int] $LogLevel=1,
+        [bool]$ErrorAsException=$false,
+        [bool]$OnlyId4v1=$false
     )
     Write-Verbose "$(Get-Date):::$($MyInvocation.InvocationName) ENTER: ============================================="
 
     $VerAPI = (GetVersionAPI -Params $Params)
 
-    if ( (-not $Params.ContainsKey('params')) -or (-not $Params.params.ContainsKey('domain')) ) {
-        throw("Не передан обязательный параметр Params.params.domain")
-    }
-    $params_temp = @{}
-    $params_temp += $Params
-    $params_temp.Params.Query=''
-    $params_temp.Params.Remove('UseInitialOffset')
-    $params_temp.AllDomains = $true
-
-    $domain = $params_temp.params.domain
-    if ( $null -eq $domain) {
-        throw("Обязательный параметр Params.params.domain не может быть null")
-    }
-    if ($domain -isnot [string]) {
-        throw("Обязательный параметр Params.params.domain имеет неверный тип, должен быть String")
-    } 
-    $domain = $domain.trim().ToLower()
-    if ($domain -eq "") {
-        throw("Обязательный параметр Params.params.domain не может быть пустым")
-    }
-    if ($domain.Contains('.')) {
-        # в Params.params.domain было передано имя и надо для него получить ID для actual (v1)
-        # для legacy (v1) ID получать не надо, т.к. API одинаково работает и с ID, и с именем
-        if ($VerAPI -eq 'v2') {
-            $res = (Get-DomainsNew -Params $params_temp -LogLevel $LogLevel)
-            if ( ($null -ne $res) -and ($res.resDomains.count -eq 1) ) {
-                $res = $res.resDomains[0].id
-            }
-        } else {
+    $domain = ([String]$Params.params.Domain).Trim()
+    if ($domain) {
+        if (IsID -Value $domain -VerAPI $VerAPI -ErrorAsException $ErrorAsException -OnlyID4v1 $OnlyID4v1) {
+            # в domain передали ID домена
             $res = $domain
+        } else {
+            # в domain передали имя домена
+            $fd = Find-Domain -Params $Params -LogLevel $LogLevel
+            if ($fd.Code -eq 200) {
+                # нет ошибок при поиске
+                if ($fd.resDomains.Count -ne 1) {
+                    throw "Не смогли найти домен $($domain) ::: $($MyInvocation.InvocationName)"
+                }
+                $res = $fd.resDomains[0].id
+            } else {
+                throw "Ошибка определения ID по имени домена $($domain) ::: $($MyInvocation.InvocationName)"
+            }
         }
     } else {
-        # в Params.params.domain был передан ID, его и возвращаем
-        $res = $domain
+        # domain в параметрах пустой
+        $res=''
+        #throw("Не передан обязательный параметр Params.params.domain")
     }
     # результат
     Write-Verbose "Возвращаемое значение (res): $($res)"
@@ -2159,6 +2152,6 @@ if ( ($null -eq (Get-Variable Token_Current -ErrorAction SilentlyContinue)) -or 
 }
 
 #Set-Alias -Value Get-Domains -Name domains
-Export-ModuleMember -Function @('Invoke-API') #, <#'Get-Domains',#> 'Get-Records')
+#Export-ModuleMember -Function @('Invoke-API') #, <#'Get-Domains',#> 'Get-Records')
 #Export-ModuleMember -Function Invoke-API
 #Export-ModuleMember -Function *

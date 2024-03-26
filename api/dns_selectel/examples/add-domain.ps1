@@ -33,7 +33,6 @@ $r=(.\rest-api.ps1 -Provider 'dns_selectel' `
     -LogLevel 1 `
 );
 
-
 $dd=(Get-Date)-$dt
 Write-Host -ForegroundColor DarkGreen "$("Начали".PadRight(12,'-')): $($dt)"
 Write-Host -ForegroundColor DarkGreen "$("Закончили".PadRight(12,'-')): $(Get-Date)"
