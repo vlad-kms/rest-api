@@ -25,7 +25,7 @@ function Invoke-API1 () {
         [int] $LogLevel=1
     )
     begin {
-        $s = "$($MyInvocation.InvocationName) ENTER: =============================================++++++++++++++++++++++++++++"
+        $s = "$(Get-Date):::$($MyInvocation.InvocationName) ENTER: =============================================++++++++++++++++++++++++++++"
         Write-Verbose "$($s)"
         Write-Verbose "$($Params|ConvertTo-Json -Depth $LogLevel)"
         $result = [ordered]@{
@@ -105,7 +105,7 @@ function Invoke-API1 () {
         }
     } ### process {
     end {
-        Write-Verbose "$($MyInvocation.InvocationName) LEAVE: ============================================="
+        Write-Verbose "$(Get-Date):::$($MyInvocation.InvocationName) LEAVE: ============================================="
         return $result
     }
 
@@ -126,7 +126,7 @@ function Get-SupportedFeatures() {
         [hashtable] $sectionIni = @{}
     )
 
-    Write-Verbose "$($MyInvocation.InvocationName) ENTER: ============================================="
+    Write-Verbose "$(Get-Date):::$($MyInvocation.InvocationName) ENTER: ============================================="
     $result = @{}
     if ($sectionIni.ContainsKey("actions")) {
         $result += $sectionIni.actions
@@ -137,7 +137,7 @@ function Get-SupportedFeatures() {
         }
     }
     Write-Verbose "result: $($result | ConvertTo-Json)"
-    Write-Verbose "$($MyInvocation.InvocationName) LEAVE: ============================================="
+    Write-Verbose "$(Get-Date):::$($MyInvocation.InvocationName) LEAVE: ============================================="
     return $result
 }
 
@@ -204,7 +204,7 @@ function Get-Domains() {
         [hashtable] $Params,
         [Int] $LogLevel=1
     )
-    Write-Verbose "$($MyInvocation.InvocationName) ENTER: ============================================="
+    Write-Verbose "$(Get-Date):::$($MyInvocation.InvocationName) ENTER: ============================================="
     #Write-Verbose "Переданные параметры: $($Params | ConvertTo-Json -Depth $LogLevel)"
 
     # дополнительно для строки запроса и ее параметров
@@ -232,7 +232,7 @@ function Get-Domains() {
         throw $resultAPI.StatusDescription
     }
     Write-Verbose "content TO object: $($resultAPI.resDomains)"
-    Write-Verbose "$($MyInvocation.InvocationName) LEAVE: ============================================="
+    Write-Verbose "$(Get-Date):::$($MyInvocation.InvocationName) LEAVE: ============================================="
     return $res
 }
 
@@ -284,7 +284,7 @@ function Get-Record() {
         [Int] $LogLevel=1
     )
 
-    Write-Verbose "$($MyInvocation.InvocationName) ENTER: ============================================="
+    Write-Verbose "$(Get-Date):::$($MyInvocation.InvocationName) ENTER: ============================================="
     #Write-Verbose "Переданные параметры: $($Params | ConvertTo-Json -Depth $LogLevel)"
 
     # дополнительно для строки запроса и ее параметров
@@ -317,7 +317,7 @@ function Get-Record() {
     }
 
     Write-Verbose "content TO object: $($resultAPI.resDomains)"
-    Write-Verbose "$($MyInvocation.InvocationName) LEAVE: ============================================="
+    Write-Verbose "$(Get-Date):::$($MyInvocation.InvocationName) LEAVE: ============================================="
     return $res
 }
 
@@ -372,7 +372,7 @@ function Add-Records() {
         [Int] $LogLevel=1
     )
 
-    Write-Verbose "$($MyInvocation.InvocationName) ENTER: ============================================="
+    Write-Verbose "$(Get-Date):::$($MyInvocation.InvocationName) ENTER: ============================================="
     #Write-Verbose "Переданные параметры: $($Params | ConvertTo-Json -Depth $LogLevel)"
 
     # вычисляем domain по-умолчанию, который будем дополнять в ресурсную запись при отсутствии домена в данных
@@ -442,7 +442,7 @@ function Add-Records() {
    
     Write-Verbose "Data return: "
     Write-Verbose "$($resArray.resDomains)"
-    Write-Verbose "$($MyInvocation.InvocationName) LEAVE: ============================================="
+    Write-Verbose "$(Get-Date):::$($MyInvocation.InvocationName) LEAVE: ============================================="
     return $resArray
 }
 
@@ -484,7 +484,7 @@ function Remove-Records() {
         [Int] $LogLevel=1
     )
 
-    Write-Verbose "$($MyInvocation.InvocationName) ENTER: ============================================="
+    Write-Verbose "$(Get-Date):::$($MyInvocation.InvocationName) ENTER: ============================================="
     #Write-Verbose "Переданные параметры: $($Params | ConvertTo-Json -Depth $LogLevel)"
 
     # domain
@@ -542,7 +542,7 @@ function Remove-Records() {
 
     Write-Verbose "Data return: "
     Write-Verbose "$($resArray.code)"
-    Write-Verbose "$($MyInvocation.InvocationName) LEAVE: ============================================="
+    Write-Verbose "$(Get-Date):::$($MyInvocation.InvocationName) LEAVE: ============================================="
     return $resArray
 }
 
@@ -598,7 +598,7 @@ function Set-Records() {
         [Int] $LogLevel=1
     )
 
-    Write-Verbose "$($MyInvocation.InvocationName) ENTER: ============================================="
+    Write-Verbose "$(Get-Date):::$($MyInvocation.InvocationName) ENTER: ============================================="
     #Write-Verbose "Переданные параметры: $($Params | ConvertTo-Json -Depth $LogLevel)"
 
     # domain
@@ -667,7 +667,7 @@ function Set-Records() {
     })
     Write-Verbose "Data return: "
     Write-Verbose "$($res.resDomains)"
-    Write-Verbose "$($MyInvocation.InvocationName) LEAVE: ============================================="
+    Write-Verbose "$(Get-Date):::$($MyInvocation.InvocationName) LEAVE: ============================================="
     return $resArray
 }
 
@@ -729,7 +729,7 @@ function Invoke-Request() {
         [Int] $LogLevel=1
     )    
     
-    Write-Verbose "$($MyInvocation.InvocationName) ENTER: ============================================="
+    Write-Verbose "$(Get-Date):::$($MyInvocation.InvocationName) ENTER: ============================================="
     Write-Verbose "Переданные параметры:"
     Write-Verbose "Params: $($Params | ConvertTo-Json -Depth $LogLevel)"
     Write-Verbose "Method: $($Method)"
@@ -849,7 +849,7 @@ function Invoke-Request() {
         #throw $PSItem
     }
     #Write-Verbose "res after request API: $($res|ConvertTo-Json -depth 4)"
-    Write-Verbose "$($MyInvocation.InvocationName) LEAVE: ============================================="
+    Write-Verbose "$(Get-Date):::$($MyInvocation.InvocationName) LEAVE: ============================================="
     return $res
 }
 

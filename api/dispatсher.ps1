@@ -11,7 +11,7 @@
         [int] $LogLevel=1
     )
 
-    Write-Verbose "$($MyInvocation.InvocationName) ENTER: ============================================="
+    Write-Verbose "$(Get-Date):::$($MyInvocation.InvocationName) ENTER: ============================================="
     Write-Verbose "Provider: $($Provider)"
     Write-Verbose "Path: $($Path)"
     Write-Verbose "Vars: $(if ($null -ne $Vars) {$Vars.ToJson(1)} else {"null"})"
@@ -68,7 +68,7 @@
     #Write-Verbose "result.$($Provider).module: $($result.$Provider.module | ConvertTo-Json -depth 1)"
     Write-Verbose "result.$($Provider).path: $($result.$Provider.path)"
     Write-Verbose "result.$($Provider).file: $($result.$Provider.file)"
-    Write-Verbose "$($MyInvocation.InvocationName) LEAVE: ============================================="
+    Write-Verbose "$(Get-Date):::$($MyInvocation.InvocationName) LEAVE: ============================================="
     return $result
 }
 
@@ -96,7 +96,7 @@ function Get-Invoke-API () {
         [Int] $LogLevel=1
     )
     begin {
-        $s = "$($MyInvocation.InvocationName) ENTER: =============================================++++++++++++++++++++++++++++"
+        $s = "$(Get-Date):::$($MyInvocation.InvocationName) ENTER: =============================================++++++++++++++++++++++++++++"
         Write-Verbose "$($s)"
         #Write-Verbose "Параметры, переданные:`n$($Params|ConvertTo-Json -Depth $LogLevel)"
         # проверить обязательность параметров
@@ -227,7 +227,7 @@ function Get-Invoke-API () {
         }
     }
     end {
-        Write-Verbose "$($MyInvocation.InvocationName) LEAVE: ============================================="
+        Write-Verbose "$(Get-Date):::$($MyInvocation.InvocationName) LEAVE: ============================================="
         $result += @{'result'=$result.resAPI.HttpResponse.resDomains}
         return $result
     }

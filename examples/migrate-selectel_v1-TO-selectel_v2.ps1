@@ -12,7 +12,7 @@ Param(
 
 begin {
     Write-Host "$(get-date -Format "yyyyMMdd HH:mm:ss") ::: Миграция доменов Selectel(legacy) --> Selectel(actual) (v1 --> v2)" -ForegroundColor Green
-    $s = "$($MyInvocation.InvocationName) ENTER: ============================================="
+    $s = "$(Get-Date):::$($MyInvocation.InvocationName) ENTER: ============================================="
     Write-Verbose $s
     # список всех доменов legacy (v1)
     Write-Progress -Id 0 "Вызов API: получение доменов"
@@ -172,7 +172,7 @@ process {
     # Теперь запишем их в actual
 }
 end {
-    $s = "$($MyInvocation.InvocationName) LEAVE: ============================================="
+    $s = "$(Get-Date):::$($MyInvocation.InvocationName) LEAVE: ============================================="
     Write-Verbose $s
     Write-Host "$(get-date -Format "yyyyMMdd HH:mm:ss") ::: Миграция доменов Selectel(legacy) --> Selectel(actual) (v1 --> v2)" -ForegroundColor Green
 

@@ -22,7 +22,7 @@
         [hashtable] $Params,
         [int] $LogLevel=1
     )
-    $s = "$($MyInvocation.InvocationName) ENTER: ============================================="
+    $s = "$(Get-Date):::$($MyInvocation.InvocationName) ENTER: ============================================="
     Write-Verbose "$($s)"
     #Write-Verbose "$($Params | ConvertTo-Json -depth 2)"
     $result = [ordered]@{
@@ -72,7 +72,7 @@
         }
     }
 #>
-    Write-Verbose "$($MyInvocation.InvocationName) LEAVE: ============================================="
+    Write-Verbose "$(Get-Date):::$($MyInvocation.InvocationName) LEAVE: ============================================="
     return $result
 }
 
@@ -86,9 +86,9 @@ function Get-SupportedFeatures() {
     Param(
     )
 
-    Write-Verbose "$($MyInvocation.InvocationName) ENTER: ============================================="
+    Write-Verbose "$(Get-Date):::$($MyInvocation.InvocationName) ENTER: ============================================="
 
-    Write-Verbose "$($MyInvocation.InvocationName) LEAVE: ============================================="
+    Write-Verbose "$(Get-Date):::$($MyInvocation.InvocationName) LEAVE: ============================================="
     $result = @{
         "test"="Get-Test";
         "GetRecords"="Get-Records";
@@ -117,10 +117,10 @@ function Get-Test() {
         [Int] $LogLevel=1
     )
 
-    Write-Verbose "$($MyInvocation.InvocationName) ENTER: ============================================="
+    Write-Verbose "$(Get-Date):::$($MyInvocation.InvocationName) ENTER: ============================================="
 
     Write-Verbose "TESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTEST"
     Write-Verbose "$($Params|ConvertTo-Json -Depth $LogLevel)"
 
-    Write-Verbose "$($MyInvocation.InvocationName) LEAVE: ============================================="
+    Write-Verbose "$(Get-Date):::$($MyInvocation.InvocationName) LEAVE: ============================================="
 }

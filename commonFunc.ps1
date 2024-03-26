@@ -97,7 +97,7 @@ function Get-ArrayModules() {
         [switch] $IncludeCommon
     )
     begin{
-        Write-Verbose "$($MyInvocation.InvocationName) ENTER: ======================================================="
+        Write-Verbose "$(Get-Date):::$($MyInvocation.InvocationName) ENTER: ======================================================="
         Write-Verbose "$($MyInvocation.InvocationName) begin: ======================================================="
         $Result=[ordered]@{}
         $useCommonDir = $IncludeCommon.IsPresent
@@ -225,7 +225,7 @@ function Get-PathScript() {
     param (
         [CommonVariable] $Vars=$null
     )
-    Write-Verbose "$($MyInvocation.InvocationName) ENTER: ======================================================="
+    Write-Verbose "$(Get-Date):::$($MyInvocation.InvocationName) ENTER: ======================================================="
     if ( ($null -ne $Vars) -and ($Vars -is [CommonVariable]) -and ($Vars.existsProperty('scriptPath')) ) {
         $result = $Vars.scriptPath
         Write-Verbose "Взять путь из [CommonVariable]: $($result)"
@@ -239,7 +239,7 @@ function Get-PathScript() {
         Write-Verbose "Взять путь из системных автопеременных: $($result)"
     }
     Write-Verbose "return: $($result)"
-    Write-Verbose "$($MyInvocation.InvocationName) LEAVE: ======================================================="
+    Write-Verbose "$(Get-Date):::$($MyInvocation.InvocationName) LEAVE: ======================================================="
     return $result
 }
 

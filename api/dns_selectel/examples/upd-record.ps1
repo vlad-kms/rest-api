@@ -20,9 +20,12 @@ Param(
     [Parameter(Mandatory=$true, Position=1)]
     [String]$record_id,
     [String]$ver='v2',
-    [hashtable]$record=@{}
+    [hashtable]$record=@{},
+    [Switch]$v
 )
-$vb=$false
+$vb=$v.IsPresent
+$dt=(get-date)
+
 $r=(.\rest-api.ps1 -Provider 'dns_selectel' `
     -FileIni "E:\!my-configs\configs\src\dns-api\config.json" `
     -ExtParams @{ `
@@ -46,6 +49,9 @@ $r=(.\rest-api.ps1 -Provider 'dns_selectel' `
     -LogLevel 1 `
 );
 
-return $r
-
-exit
+$dd=(Get-Date)-$dt
+Write-Host -ForegroundColor DarkGreen "$("Начали".PadRight(12,'-')): $($dt)"
+Write-Host -ForegroundColor DarkGreen "$("Закончили".PadRight(12,'-')): $(Get-Date)"
+Write-Host -ForegroundColor DarkGreen "$("Выполнено за".PadRight(12,'-')): $($dd.TotalSeconds) сек"
+Write-Host -ForegroundColor DarkGreen "$("Выполнено за".PadRight(12,'-')): $($dd.TotalMilliseconds) мс"
+$r
