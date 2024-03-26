@@ -3,8 +3,7 @@ Param(
     [Parameter(ValueFromPipeline=$true, Position=0)]
     [String]$domain='ce26d823-51a7-420d-8158-08450ca3c6ab',
     [hashtable]$comment=@{'comment'=''},
-    [String]$ver='v2',
-    [Switch]$v
+    [String]$ver='v2'
 )
 
 $dt=(get-date)
@@ -28,7 +27,6 @@ $r=(.\rest-api.ps1 -Provider 'dns_selectel' `
                 '_Query'='offset=2&limit=2&show_ips=true'; `
                 '_record_id'=11264554 `
     } `
-    -Verbose:$v.IsPresent `
     -Action 'dUPD' `
     -LogLevel 1 `
 );

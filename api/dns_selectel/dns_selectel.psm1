@@ -1583,6 +1583,7 @@ function Add-Domain() {
             $mess = "Запрос не может быть выполнен. Не указан обязательный параметр <Params.params.domain> - домен который надо создать."
             throw $mess
         }
+        $Params += @{'paramsQuery'=@{}}
         # Method
         $Method='Post'
         # параметры запроса
