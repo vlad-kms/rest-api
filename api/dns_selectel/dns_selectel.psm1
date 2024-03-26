@@ -1432,7 +1432,7 @@ function Set-Record() {
 function Set-Domain() {
     <#
     .DESCRIPTION
-    Обновить данные для заданного домена
+    Обновить данные для заданного домена. На данный момент у провайдера реализовано только изменение комментария
     Поддерживается только API v2
     .OUTPUTS
     Name: res
@@ -1464,21 +1464,46 @@ function Set-Domain() {
     # версия API
     $VerAPI = (GetVersionAPI -Params $Params)
     if ($VerAPI.ToLower() -eq 'v2' ) {
-        # domain
-        if ($Params.Params.ContainsKey("Domain") -and $Params.Params.Domain -and ([String]$Params.Params.Domain).Trim()) {
-            #$Params += @{'additionalUri' = ([String]$Params.Params.Domain).Trim()}
-            $d_id = GetIdDomain -Params $Params -LogLevel $LogLevel
-            $Params += @{'additionalUri' = "$($d_id)"}
+        # домен в параметрах $Params.Params.domain ОБЯЗАТЕЛЕН:
+        #   для legacy (v1) можно использовать и имя домена, и  ID
+        #   для actual (v2) можно использовать только ID домена, если передали имя, то сначала получить ID по имени домена (GetIdDomain)
+        $par=@{}
+        $domain = ([String]$Params.params.Domain).Trim()
+        if ($domain) {
+            if (IsID -Value $domain -VerAPI $VerAPI -ErrorAsException $false -OnlyID4v1 $false) {
+                # в domain передали ID домена
+                $par += @{'idDomain'="$($domain)"}
+            } else {
+                # в domain передали имя домена
+                $fd = Find-Domain -Params $Params -LogLevel $LogLevel
+                if ($fd.Code -eq 200) {
+                    # нет ошибок при поиске
+                    if ($fd.resDomains.Count -ne 1) {
+                        throw "Не смогли найти домен $($domain) ::: $($MyInvocation.InvocationName)"
+                    }
+                    $par += @{'idDomain'="$($fd.resDomains[0].id)"}
+                } else {
+                    throw "Ошибка при поиске домена $($domain) ::: $($MyInvocation.InvocationName)"
+                }
+            }
         } else {
             $mess = "Запрос не может быть выполнен. Не указан обязательный параметр <Params.params.domain> - домен для которого надо обновить данные."
             throw $mess
         }
+        $Params += @{'paramsQuery'=$par}
         # готовим Body, данные для записи, для домена
         $domain_data = @{};
         $messError = ""
         $domain_data = $Params.params.domain_data
         if ($null -ne $domain_data -and ($domain_data -is [hashtable]) -or ($domain_data -is [PSCustomObject]) -or ($domain_data -is [psobject])  ) {
             $Body = $domain_data
+        } elseif ($null -ne $domain_data -and ($domain_data -is [string])) {
+            try {
+                $Body = ($domain_data | ConvertFrom-Json)
+            }
+            catch {
+                $messError = "Запрос не может быть выполнен. Не определены или неверно заданы параметры ресурсной записи для домена $($Params.Params.domain_data)."
+            }
         } else {
             $messError = "Запрос не может быть выполнен. Не определены или неверно заданы параметры ресурсной записи для домена $($Params.Params.domain_data)."
         }

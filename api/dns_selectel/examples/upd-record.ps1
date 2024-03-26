@@ -20,9 +20,10 @@ Param(
     [Parameter(Mandatory=$true, Position=1)]
     [String]$record_id,
     [String]$ver='v2',
-    [hashtable]$record=@{}
+    [hashtable]$record=@{},
+    [Switch]$v
 )
-$vb=$false
+$vb=$v.IsPresent
 $dt=(get-date)
 
 $r=(.\rest-api.ps1 -Provider 'dns_selectel' `
