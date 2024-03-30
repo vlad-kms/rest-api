@@ -48,10 +48,15 @@ Param (
     [Parameter(Position=2)]
     [string] $Action='getInfo',
     [ValidateSet('INI', 'JSON')]
+    [Alias('TC')]
     [String] $TypeConfig="JSON",
+    [Alias('LL')]
     [int] $LogLevel=1,
+    [Alias('LF')]
     [string] $LogFilename="",
+    [Alias('EP')]
     [hashtable] $ExtParams=@{},
+    [Alias('PI')]
     [string[]] $PathIncludes=@(),
     [string] $Module='avvClasses'
 )
