@@ -212,7 +212,7 @@ process {
                     )
                     if ($actual_rrset.retCode -eq 200) {
                         # нет ошибок при чтении actual rrset
-                        $aar = [PSCustomObject]$actual_rrset.result.result
+                        $aar = [PSCustomObject]$actual_rrset.result
                         $result.raw.actual += @{"$e"=@{"rrset" = $actual_rrset}}
                     } else {
                         $strMess="Не считали rrset actual домена. HTTP code: $($actual_rrset.retCode); $($actual_rrset.result)"
