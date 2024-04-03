@@ -98,7 +98,7 @@ begin {
     if ($domains_actual.retCode -ne 200) {
         throw "Ошибка получения доменов actual (v2)"
     } else {
-        $domains_actual = $domains_actual.result.result
+        $domains_actual = $domains_actual.result
     }
     Write-Verbose (levelMessage "Все домены actual:" -Indent ($indentOneElement - 1))
     Write-Verbose (levelMessage ($domains_actual|ConvertTo-Json -Depth 4) -Indent $indentOneElement)
