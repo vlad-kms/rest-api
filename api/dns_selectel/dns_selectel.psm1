@@ -1427,7 +1427,8 @@ function Set-Domain() {
         }
         if ( ($res.Code -eq 200) -or ($res.Code -eq 204) ) { # OK
             $res += @{
-                'resDomains' = $resultAPI.Content;
+                #'resDomains' = $resultAPI.Content;
+                'resDomains' = ($resultAPI.Content | ConvertFrom-Json)
             }
         } else {
             throw $resultAPI.StatusDescription
@@ -1500,7 +1501,7 @@ function Add-Domain() {
         }
         if ( ($res.Code -eq 200) -or ($res.Code -eq 204) ) { # OK
             $res += @{
-                'resDomains' = $resultAPI.Content;
+                'resDomains' = ($resultAPI.Content | ConvertFrom-Json)
             }
         } else {
             throw $resultAPI.StatusDescription
