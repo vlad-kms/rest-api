@@ -98,7 +98,7 @@ begin {
     if ($domains_actual.retCode -ne 200) {
         throw "Ошибка получения доменов actual (v2)"
     } else {
-        $domains_actual = $domains_actual.result.result
+        $domains_actual = $domains_actual.result
     }
     Write-Verbose (levelMessage "Все домены actual:" -Indent ($indentOneElement - 1))
     Write-Verbose (levelMessage ($domains_actual|ConvertTo-Json -Depth 4) -Indent $indentOneElement)
@@ -212,7 +212,7 @@ process {
                     )
                     if ($actual_rrset.retCode -eq 200) {
                         # нет ошибок при чтении actual rrset
-                        $aar = [PSCustomObject]$actual_rrset.result.result
+                        $aar = [PSCustomObject]$actual_rrset.result
                         $result.raw.actual += @{"$e"=@{"rrset" = $actual_rrset}}
                     } else {
                         $strMess="Не считали rrset actual домена. HTTP code: $($actual_rrset.retCode); $($actual_rrset.result)"
