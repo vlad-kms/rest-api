@@ -1095,9 +1095,21 @@ function Add-Record() {
     $record = @{};
     $messError = ""
     $record = $Params.params.record
-    if ($null -ne $record -and ($record -is [hashtable]) -or ($record -is [PSCustomObject]) -or ($record -is [psobject])  ) {
-        $Body = $record
-    } else {
+    try{
+        if ($null -ne $record -and ($record -is [hashtable]) -or ($record -is [PSCustomObject]) -or ($record -is [psobject])  ) {
+            $Body = $record
+            foreach ($rec_cont in $Body.records) {
+                $rec_cont.content = switch ($Body.Type.ToUpper()) {
+                    'TXT'   {"""$($rec_cont.content.Trim(' "'''))"""}
+                    'CNAME' {"$($rec_cont.content.Trim(' .'))."}
+                    'NS' {"$($rec_cont.content.Trim(' .'))."}
+                    default {$rec_cont.content}
+                }
+            }
+        } else {
+            $messError = "Запрос не может быть выполнен. Не определены или неверно заданы параметры ресурсной записи для домена $($Params.Params.record)."
+        }
+    } catch{
         $messError = "Запрос не может быть выполнен. Не определены или неверно заданы параметры ресурсной записи для домена $($Params.Params.record)."
     }
     if ($messError) {
@@ -1304,6 +1316,16 @@ function Set-Record() {
             $Body = ($record | ConvertFrom-Json )
         } else {
             $messError = "Запрос не может быть выполнен. Не определены или неверно заданы параметры ресурсной записи для домена $($Params.Params.record)."
+        }
+        if ( -not $messError ) {
+            foreach ($rec_cont in $Body.records) {
+                $rec_cont.content = switch ($Body.Type.ToUpper()) {
+                    'TXT'   {"""$($rec_cont.content.Trim(' "'''))"""}
+                    'CNAME' {"$($rec_cont.content.Trim(' .'))."}
+                    'NS' {"$($rec_cont.content.Trim(' .'))."}
+                    default {$rec_cont.content}
+                }
+            }
         }
     }
     catch {

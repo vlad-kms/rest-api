@@ -34,6 +34,7 @@ begin {
             [Alias('spcSub')]
             [int]$SpacesSubstitution=4
         )
+        if ( $null -eq $mess ) {return ''}
         $lstr=' '.PadRight($Indent*$SpacesSubstitution)
         $result = $mess -replace "(?m)^", "$lstr"
         if ([bool]$AddDatetimeLogging) {
@@ -276,7 +277,7 @@ process {
                         Write-Host "What If: добавили домен $($e) а actual (v2)" -ForegroundColor DarkCyan
                     }
                 }
-                # подготовили записи, начинаем процесс
+                # готовиv записи RRSET далее для миграции
                 #
                 if (-not $result."$processingKey"."$e".ContainsKey("actual_rrset")) {
                     $result."$processingKey"."$e".actual_rrset = @{}
@@ -301,7 +302,9 @@ process {
                                 то   добавить к ней доп.запись данных
                                 иначе добавить запись
                     #>
-                    if ( ($null -eq $result."$processingKey"."$e".actual_rrset.$type.name) -or ($result."$processingKey"."$e".actual_rrset.$type.name.IndexOf("$($record.name.ToLower()).") -lt 0) ) {
+                    if ( ($null -eq $result."$processingKey"."$e".actual_rrset.$type.name) -or
+                         ( ([String[]]$result."$processingKey"."$e".actual_rrset.$type.name).IndexOf("$($record.name.ToLower()).") -lt 0) )
+                    {
                         # нет в actual записей с именем $record.name
                         $result."$processingKey"."$e".actual_rrset.$type += ,[PSCustomObject]@{
                             'name'="$($record.name).";
@@ -310,20 +313,35 @@ process {
                             'comment'='migrate from legacy:';
                             'records'=@(
                                 [PSCustomObject]@{
-                                    'content'=$record.content;
+                                    'content' = $record.content
                                 }
                             );
                             'IsChanged'=$false
                         }
-                        $idx = $result."$processingKey"."$e".actual_rrset.$type.Count - 1
+                        $idx = ([String[]]$result."$processingKey"."$e".actual_rrset.$type).Count - 1
                     } else {
                         # есть в actual запись с именем $record.name
-                        $idx= $result."$processingKey"."$e".actual_rrset."$type".name.IndexOf("$($record.name.ToLower()).")
-                        $result."$processingKey"."$e".actual_rrset."$type"[$idx].records += [PSCustomObject]@{'content'=$record.content}
-                        if ($result."$processingKey"."$e".actual_rrset."$type"[$idx].psobject.Properties.match('IsChanged').Count -gt 0) {
-                            $result."$processingKey"."$e".actual_rrset."$type"[$idx].IsChanged = ($true -and ($result."$processingKey"."$e".actual_rrset."$type"[$idx].psobject.Properties.match('ID').Count -gt 0))
+                        $idx= ([String[]]$result."$processingKey"."$e".actual_rrset."$type".name).IndexOf("$($record.name.ToLower()).")
+                        # флаг, что меняем запись RRSET
+                        $recChanged=$false
+                        if ($record.type.ToUpper() -eq 'CNAME') {
+                            # для CNAME если content из legacy <> content из actual, то записать данные в actual и установить флаг изменения
+                            if ( $record.content.Trim(' .') -ne $result."$processingKey"."$e".actual_rrset."$type"[$idx].records[0].content.Trim(' .') ) {
+                                $result."$processingKey"."$e".actual_rrset."$type"[$idx].records = @([PSCustomObject]@{'content'=$record.content})
+                                $recChanged=$true
+                            }
                         } else {
-                            $result."$processingKey"."$e".actual_rrset."$type"[$idx] | Add-Member -MemberType NoteProperty -Name IsChanged -Value ($true -and ($result."$processingKey"."$e".actual_rrset."$type"[$idx].psobject.Properties.match('ID').Count -gt 0))
+                            # для остальных, если content из legacy не содержится в content[] из actual, то записать данные в actual и установить флаг изменения
+                            if ( $record.content.Trim(' "''.') -notin ([String[]]$result."$processingKey"."$e".actual_rrset."$type"[$idx].records.content.Trim(' "''.')) ) {
+                                $result."$processingKey"."$e".actual_rrset."$type"[$idx].records += [PSCustomObject]@{'content'=$record.content}
+                                $recChanged=$true
+                            }
+                        }
+                        #$result."$processingKey"."$e".actual_rrset."$type"[$idx].records += [PSCustomObject]@{'content'=$record.content}
+                        if ($result."$processingKey"."$e".actual_rrset."$type"[$idx].psobject.Properties.match('IsChanged').Count -gt 0) {
+                            $result."$processingKey"."$e".actual_rrset."$type"[$idx].IsChanged = ($recChanged -and ($result."$processingKey"."$e".actual_rrset."$type"[$idx].psobject.Properties.match('ID').Count -gt 0))
+                        } else {
+                            $result."$processingKey"."$e".actual_rrset."$type"[$idx] | Add-Member -MemberType NoteProperty -Name IsChanged -Value ($recChanged -and ($result."$processingKey"."$e".actual_rrset."$type"[$idx].psobject.Properties.match('ID').Count -gt 0))
                         }
                     }
                     $strMess = "Подготовили для миграции ""$($record.name)"""
