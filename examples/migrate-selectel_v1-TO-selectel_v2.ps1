@@ -277,7 +277,7 @@ process {
                         Write-Host "What If: добавили домен $($e) а actual (v2)" -ForegroundColor DarkCyan
                     }
                 }
-                # готовиv записи RRSET далее для миграции
+                # готовим записи RRSET далее для миграции
                 #
                 if (-not $result."$processingKey"."$e".ContainsKey("actual_rrset")) {
                     $result."$processingKey"."$e".actual_rrset = @{}
@@ -306,15 +306,19 @@ process {
                          ( ([String[]]$result."$processingKey"."$e".actual_rrset.$type.name).IndexOf("$($record.name.ToLower()).") -lt 0) )
                     {
                         # нет в actual записей с именем $record.name
+                        $rec_data=@{
+                            'content' = $record.content
+                        }
+                        if ($record.type.ToUpper() -eq 'MX') {
+                            $rec_data += @{'priority'=$record.priority}
+                        }
                         $result."$processingKey"."$e".actual_rrset.$type += ,[PSCustomObject]@{
                             'name'="$($record.name).";
                             'type'=$record.type;
                             'ttl'=$record.ttl;
                             'comment'='migrate from legacy:';
                             'records'=@(
-                                [PSCustomObject]@{
-                                    'content' = $record.content
-                                }
+                                [PSCustomObject]$rec_data
                             );
                             'IsChanged'=$false
                         }
