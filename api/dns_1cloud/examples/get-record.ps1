@@ -1,14 +1,14 @@
 [CmdletBinding()]
 Param(
-    [Parameter(Mandatory=$true, Position=0)]
+    [Parameter(Mandatory=$true, Position=0, ValueFromPipeline=$true)]
     [String]$record,
     [Parameter(Position=1)]
-    [String]$domain='34124'
+    [String]$domain='295579'
 )
 
 $vb=$false
 
-$global:r1=(.\rest-api.ps1 -Provider 'dns_1cloud' -FileIni "E:\!my-configs\configs\src\dns-api\config.json" `
+$r1=(.\rest-api.ps1 -Provider 'dns_1cloud' -FileIni "E:\!my-configs\configs\src\dns-api\config.json" `
     -ExtParams @{ `
         'domain'="$($domain)"; `
         "_Service" = "123"; `
@@ -45,4 +45,3 @@ $global:r1=(.\rest-api.ps1 -Provider 'dns_1cloud' -FileIni "E:\!my-configs\confi
 ); `
 $r1
 
-Write-Output 'GLOBAL VAR $r1'
